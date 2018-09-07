@@ -1,0 +1,223 @@
+#!/bin/sh
+# shellcheck disable=SC2059
+
+readonly VERSION="0.0.1"
+
+Help() {
+cat <<"HELP" >/dev/stderr
+
+lw
+===
+
+Simple shell script with very little dependency.  
+Like a **L**one **W**olf that does not depend on anyone... _(:3」∠)_  
+
+
+## Usage:
+
+#### `help`
+Display help.  
+
+    $ lw help
+
+
+#### `s3 list [bucket]`
+list the contents on Amazon S3.  
+
+    $ lw s3 list [bucket]
+    $ lw s3 ls [bucket]
+
+
+#### `s3 get`
+get the contents of the file on Amazon S3.  
+
+    $ lw s3 get s3://your-bucket-1/path/to/file
+    $ lw s3 cat s3://your-bucket-2/path/to/file
+
+
+When executing this script, please use it on EC2 which has IAM Role allowed access to Amazon S3,  
+or set the following environment variable:  
+
+    $ export AWS_REGION=ap-northeast-1
+    $ export AWS_ACCESS_KEY_ID=AKIA****************
+    $ export AWS_SECRET_ACCESS_KEY=****************************************
+
+
+## Note:
+This program relies heavily on "AWS Signature Version 4".  
+
+#### References:
+  - Signing AWS Requests with Signature Version 4 - Amazon Web Services  
+    https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html  
+  - Signature Calculations for the Authorization Header:  
+      Transferring Payload in a Single Chunk (AWS Signature Version 4) - Amazon Simple Storage Service  
+    https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html  
+
+HELP
+}
+
+Hex() {
+  printf "$1" | od -v -A n -t x1 | while read -r LINE; do printf "${LINE}"; done | sed 's/[^[:graph:]]//g'
+}
+
+HMAC() {
+  printf "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
+}
+
+SHA256Hash() {
+  printf "$1" | openssl dgst -sha256 | sed 's/^.* //'
+}
+
+SetIAMKeys() {
+  if [ "${AWS_REGION}" ] && [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
+    # get Region AccessKeyId SecretAccessKey from environment variables
+    Region=${AWS_REGION}
+    AccessKeyId=${AWS_ACCESS_KEY_ID}
+    SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
+  else
+    # get Region AccessKeyId SecretAccessKey from IAM Role and Instance Profile
+    Region=$(curl -fsS --max-time 1 "http://169.254.169.254/latest/meta-data/placement/availability-zone" 2>/dev/null | sed 's/.$//')
+    IAMJSON=$(curl -fsS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/$(
+      curl -fsS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null)" 2>/dev/null)
+    AccessKeyId=$(     echo "${IAMJSON}" | grep "AccessKeyId"     | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    SecretAccessKey=$( echo "${IAMJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    STSToken=$(        echo "${IAMJSON}" | grep "Token"           | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+
+    # if STSToken is null, regarding as not running on EC2.
+    if [ -z "${STSToken}" ]; then
+      echo "$(
+        echo "Failed to connect http://169.254.169.254/"
+        echo "Set environment variables:"
+        echo "    $ export AWS_REGION=ap-northeast-1"
+        echo "    $ export AWS_ACCESS_KEY_ID=AKIA****************"
+        echo "    $ export AWS_SECRET_ACCESS_KEY=****************************************"
+      )" | awk '{print "[ERROR] "$0}' >/dev/stderr
+      exit 1
+    fi
+  fi
+}
+
+Get() {
+  # get IAM variables
+  SetIAMKeys
+
+  if [ "$1" ]; then
+    BucketPath=$(printf "$1" | sed 's|s3://||g')
+  elif [ "${ListBuckets}" = true ]; then
+    BucketPath=""
+  else
+    Help && exit 1
+  fi
+
+  # generate AWS Signature Version 4 for Amazon S3 REST API
+  S3Endpoint=$([ "$1" = us-east-1 ] && printf "s3.amazonaws.com" || printf "s3-${Region}.amazonaws.com")
+  DateYMD=$(date +'%Y%m%d')
+  DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
+  Payload=""
+  HashedPayload=$(printf "${Payload}" | openssl dgst -sha256 | sed 's/^.* //')
+  CanonicalRequest=$(
+    # ** blank lines are required **
+    printf "GET\n"
+    printf "/${BucketPath}\n"
+    printf "${CanonicalQueryString}\n"
+    printf "host:${S3Endpoint}\n"
+    printf "x-amz-content-sha256:${HashedPayload}\n"
+    printf "x-amz-date:${DateISO8601}\n"
+    [ "${STSToken}" ] && printf "x-amz-security-token:${STSToken}\n"
+    printf "\n"
+    printf "host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf ";x-amz-security-token")\n"
+    printf "${HashedPayload}"
+  )
+  StringtoSign=$(
+    printf "AWS4-HMAC-SHA256\n"
+    printf "${DateISO8601}\n"
+    printf "${DateYMD}/${Region}/s3/aws4_request\n"
+    printf "$(SHA256Hash "${CanonicalRequest}")"
+  )
+  Signature=$(
+    HMAC "$(HMAC "$(HMAC "$(HMAC "$(HMAC "$(Hex "AWS4${SecretAccessKey}")" "${DateYMD}")" "${Region}")" "s3")" "aws4_request")" "${StringtoSign}"
+  )
+  Authorization=$(
+    printf "AWS4-HMAC-SHA256"
+    printf " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
+    printf " SignedHeaders=host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf ";x-amz-security-token"),"
+    printf " Signature=${Signature}"
+  )
+
+  # run Amazon S3 REST API
+  if [ "${STSToken}" ]; then
+    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "?${CanonicalQueryString}")" \
+      -H "Host: ${S3Endpoint}" \
+      -H "x-amz-content-sha256: ${HashedPayload}" \
+      -H "x-amz-date: ${DateISO8601}" \
+      -H "x-amz-security-token: ${STSToken}" \
+      -H "Authorization: ${Authorization}"
+  else
+    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "?${CanonicalQueryString}")" \
+      -H "Host: ${S3Endpoint}" \
+      -H "x-amz-content-sha256: ${HashedPayload}" \
+      -H "x-amz-date: ${DateISO8601}" \
+      -H "Authorization: ${Authorization}"
+  fi
+}
+
+List() {
+  # check sub commands
+  case $1 in
+    "")
+      Response=$(ListBuckets=true Get)
+      if echo "${Response}" | grep -q "<Error>.*</Error>"; then
+        echo "${Response}"
+        exit 1
+      else
+        echo "${Response}" \
+          | grep -Eo "[^<>]*</Name><CreationDate>[^<>]*" \
+          | sed 's|\([^<>]*\)</Name><CreationDate>\([^<>]*\)|\2 \1|g;'
+      fi
+      ;;
+    *)
+      Response=$(CanonicalQueryString='list-type=2' Get "$@")
+      if echo "${Response}" | grep -q "<Error>.*</Error>"; then
+        echo "${Response}"
+        exit 1
+      else
+        echo "${Response}" \
+          | grep -Eo "[^<>]*</Key><LastModified>[^<>]*" \
+          | sed 's|\([^<>]*\)</Key><LastModified>\([^<>]*\)|\2 \1|g;'
+      fi
+      ;;
+  esac
+}
+
+S3() {
+  # check arguments num
+  [ "$#" = 0 ] && Help && exit 1
+  # check sub commands
+  case $1 in
+    get|cat)
+      shift && Get "$@"
+      ;;
+    list|ls)
+      shift && List "$@"
+      ;;
+    *)
+      Help && exit 1
+      ;;
+  esac
+}
+
+main() {
+  # check arguments num
+  [ "$#" = 0 ] && Help && exit 1
+  # check sub commands
+  case $1 in
+    s3)
+      shift && S3 "$@"
+      ;;
+    *)
+      Help && exit 1
+      ;;
+  esac
+}
+
+main "$@"
