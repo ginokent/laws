@@ -10,7 +10,7 @@ Like a **L**one **W**olf that does not depend on anyone... _(:3」∠)_
 
 When executing this script,
   - please use it on EC2 which has IAM Role allowed access to Amazon S3,
-  - or set the `region`, `aws_access_key_id`, `aws_secret_access_key` and set environment variable `AWS_PROFILE`,
+  - or set `region`, `aws_access_key_id`, `aws_secret_access_key` in `~/.aws/credentials` and `~/.aws/config` and set environment variable `AWS_PROFILE`,
   - or set the following environment variables:
 
     ```
