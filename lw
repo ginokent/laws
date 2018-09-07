@@ -205,7 +205,7 @@ List() {
     *)
       # If there is an argument, list the objects.
       BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/\(.*\)|\1|' )
-      Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|' )
+      Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|; s|/|%2F|g')
       CanonicalQueryString="list-type=2$([ "${Prefix}" ] && echo "&prefix=${Prefix}")"
       SetIAMVariables
       GenerateAWSSignatureV4
