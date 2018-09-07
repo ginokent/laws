@@ -99,23 +99,9 @@ SetIAMVariables() {
   fi
 }
 
-Get() {
-  # get IAM variables
-  SetIAMVariables
-
-  if [ "$#" = 0 ]; then
-    BucketPath=""
-  elif [ "$#" = 1 ]; then
-    BucketPath=$(echo "$1" | sed 's|s3://||g')
-  elif [ "$#" = 2 ]; then
-    BucketPath=$(echo "$1" | sed 's|s3://||g')
-    CanonicalQueryString="${CanonicalQueryString} ${Prefix}"
-  else
-    Help && exit 1
-  fi
-
+GenerateAWSSignatureV4() {
   # generate AWS Signature Version 4 for Amazon S3 REST API
-  S3Endpoint=$([ "$1" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
+  S3Endpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
   Payload=""
@@ -148,7 +134,9 @@ Get() {
     printf " SignedHeaders=host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf ";x-amz-security-token"),"
     printf " Signature=${Signature}"
   )
+}
 
+RunAPI() {
   # run Amazon S3 REST API
   if [ "${STSToken}" ]; then
     curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "?${CanonicalQueryString}")" \
@@ -166,29 +154,42 @@ Get() {
   fi
 }
 
+Get() {
+  BucketPath="$(echo "$1" | sed 's|s3://||')"
+  CanonicalQueryString=""
+  SetIAMVariables
+  GenerateAWSSignatureV4
+  RunAPI
+}
+
 List() {
   # check sub commands
   case $1 in
     "")
-      Response=$(Get)
+      # If there is no argument, list the buckets.
+      BucketPath=""
+      CanonicalQueryString=""
+      SetIAMVariables
+      GenerateAWSSignatureV4
+      Response=$(RunAPI)
       if echo "${Response}" | grep -q "<Error>.*</Error>"; then
-        echo "${Response}"
-        exit 1
+        echo "${Response}" && exit 1
       else
-        echo "${Response}" \
-          | grep -Eo "[^<>]*</Name><CreationDate>[^<>]*" \
-          | sed 's|\([^<>]*\)</Name><CreationDate>\([^<>]*\)|\2 \1|g;'
+        echo "${Response}" | grep -Eo "[^<>]*</Name><CreationDate>[^<>]*" | sed 's|\([^<>]*\)</Name><CreationDate>\([^<>]*\)|\2 \1|g;'
       fi
       ;;
     *)
-      Response=$(CanonicalQueryString='list-type=2' Get "$@")
+      # If there is an argument, list the objects.
+      BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/\(.*\)|\1|' )
+      Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|' )
+      CanonicalQueryString="list-type=2$([ "${Prefix}" ] && echo "&prefix=${Prefix}")"
+      SetIAMVariables
+      GenerateAWSSignatureV4
+      Response=$(RunAPI)
       if echo "${Response}" | grep -q "<Error>.*</Error>"; then
-        echo "${Response}"
-        exit 1
+        echo "${Response}" && exit 1
       else
-        echo "${Response}" \
-          | grep -Eo "[^<>]*</Key><LastModified>[^<>]*" \
-          | sed 's|\([^<>]*\)</Key><LastModified>\([^<>]*\)|\2 \1|g;'
+        echo "${Response}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
       fi
       ;;
   esac
