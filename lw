@@ -1,5 +1,4 @@
 #!/bin/sh
-# shellcheck disable=SC2059
 
 readonly VERSION="0.0.1"
 
@@ -21,14 +20,14 @@ Display help.
     $ lw help
 
 
-#### `s3 list [<bucket>]`
+#### `s3 list`
 list the contents on Amazon S3.  
 
-    $ lw s3 list [<your-bucket>]
-    $ lw s3 ls [<your-bucket>]
+    $ lw s3 list [<your-bucket>[<prefix>]]
+    $ lw s3 ls [<your-bucket>[<prefix>]]
 
 
-#### `s3 get <s3path>`
+#### `s3 get`
 get the contents of the file on Amazon S3.  
 
     $ lw s3 get s3://your-bucket/path/to/file
@@ -52,23 +51,25 @@ This program relies heavily on "AWS Signature Version 4".
   - Signature Calculations for the Authorization Header:  
       Transferring Payload in a Single Chunk (AWS Signature Version 4) - Amazon Simple Storage Service  
     https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html  
+  - GET Bucket (List Objects) Version 2  
+    https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
 
 HELP
 }
 
 Hex() {
-  printf "$1" | od -v -A n -t x1 | while read -r LINE; do printf "${LINE}"; done | sed 's/[^[:graph:]]//g'
+  printf "%s" "$1" | od -v -A n -t x1 | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/[^[:graph:]]//g'
 }
 
 HMAC() {
-  printf "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
+  printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
 }
 
 SHA256Hash() {
-  printf "$1" | openssl dgst -sha256 | sed 's/^.* //'
+  printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
 }
 
-SetIAMKeys() {
+SetIAMVariables() {
   if [ "${AWS_REGION}" ] && [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
     # get Region AccessKeyId SecretAccessKey from environment variables
     Region=${AWS_REGION}
@@ -91,69 +92,60 @@ SetIAMKeys() {
         echo "    $ export AWS_REGION=ap-northeast-1"
         echo "    $ export AWS_ACCESS_KEY_ID=AKIA****************"
         echo "    $ export AWS_SECRET_ACCESS_KEY=****************************************"
-      )" | awk '{print "[ERROR] "$0}' >/dev/stderr
+      )" | sed 's/^/[ERROR] /' >/dev/stderr
       exit 1
     fi
   fi
 }
 
-Get() {
-  # get IAM variables
-  SetIAMKeys
-
-  if [ "$1" ]; then
-    BucketPath=$(printf "$1" | sed 's|s3://||g')
-  elif [ "${ListBuckets}" = true ]; then
-    BucketPath=""
-  else
-    Help && exit 1
-  fi
-
+GenerateAWSSignatureV4() {
   # generate AWS Signature Version 4 for Amazon S3 REST API
-  S3Endpoint=$([ "$1" = us-east-1 ] && printf "s3.amazonaws.com" || printf "s3-${Region}.amazonaws.com")
+  S3Endpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
   Payload=""
-  HashedPayload=$(printf "${Payload}" | openssl dgst -sha256 | sed 's/^.* //')
+  HashedPayload=$(printf "%s" "${Payload}" | openssl dgst -sha256 | sed 's/^.* //')
   CanonicalRequest=$(
     # ** blank lines are required **
-    printf "GET\n"
-    printf "/${BucketPath}\n"
-    printf "${CanonicalQueryString}\n"
-    printf "host:${S3Endpoint}\n"
-    printf "x-amz-content-sha256:${HashedPayload}\n"
-    printf "x-amz-date:${DateISO8601}\n"
-    [ "${STSToken}" ] && printf "x-amz-security-token:${STSToken}\n"
-    printf "\n"
-    printf "host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf ";x-amz-security-token")\n"
-    printf "${HashedPayload}"
+    printf "%s\n" "GET"
+    printf "%s\n" "/${BucketPath}"
+    printf "%s\n" "${CanonicalQueryString}"
+    printf "%s\n" "host:${S3Endpoint}"
+    printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
+    printf "%s\n" "x-amz-date:${DateISO8601}"
+    [ "${STSToken}" ] && printf "%s\n" "x-amz-security-token:${STSToken}"
+    printf "%s\n" ""
+    printf "%s\n" "host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf "%s" ";x-amz-security-token")"
+    printf "%s\n" "${HashedPayload}"
   )
   StringtoSign=$(
-    printf "AWS4-HMAC-SHA256\n"
-    printf "${DateISO8601}\n"
-    printf "${DateYMD}/${Region}/s3/aws4_request\n"
-    printf "$(SHA256Hash "${CanonicalRequest}")"
+    printf "%s\n" "AWS4-HMAC-SHA256"
+    printf "%s\n" "${DateISO8601}"
+    printf "%s\n" "${DateYMD}/${Region}/s3/aws4_request"
+    printf "%s\n" "$(SHA256Hash "${CanonicalRequest}")"
   )
   Signature=$(
     HMAC "$(HMAC "$(HMAC "$(HMAC "$(HMAC "$(Hex "AWS4${SecretAccessKey}")" "${DateYMD}")" "${Region}")" "s3")" "aws4_request")" "${StringtoSign}"
   )
   Authorization=$(
-    printf "AWS4-HMAC-SHA256"
-    printf " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
-    printf " SignedHeaders=host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf ";x-amz-security-token"),"
-    printf " Signature=${Signature}"
+    printf "%s" "AWS4-HMAC-SHA256"
+    printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
+    printf "%s" " SignedHeaders=host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf "%s" ";x-amz-security-token"),"
+    printf "%s" " Signature=${Signature}"
   )
+}
 
+RunAPI() {
   # run Amazon S3 REST API
   if [ "${STSToken}" ]; then
-    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "?${CanonicalQueryString}")" \
+    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
       -H "Host: ${S3Endpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
       -H "x-amz-security-token: ${STSToken}" \
       -H "Authorization: ${Authorization}"
   else
-    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "?${CanonicalQueryString}")" \
+    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
       -H "Host: ${S3Endpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
@@ -161,29 +153,42 @@ Get() {
   fi
 }
 
+Get() {
+  BucketPath="$(echo "$1" | sed 's|s3://||')"
+  CanonicalQueryString=""
+  SetIAMVariables
+  GenerateAWSSignatureV4
+  RunAPI
+}
+
 List() {
   # check sub commands
   case $1 in
     "")
-      Response=$(ListBuckets=true Get)
+      # If there is no argument, list the buckets.
+      BucketPath=""
+      CanonicalQueryString=""
+      SetIAMVariables
+      GenerateAWSSignatureV4
+      Response=$(RunAPI)
       if echo "${Response}" | grep -q "<Error>.*</Error>"; then
-        echo "${Response}"
-        exit 1
+        echo "${Response}" && exit 1
       else
-        echo "${Response}" \
-          | grep -Eo "[^<>]*</Name><CreationDate>[^<>]*" \
-          | sed 's|\([^<>]*\)</Name><CreationDate>\([^<>]*\)|\2 \1|g;'
+        echo "${Response}" | grep -Eo "[^<>]*</Name><CreationDate>[^<>]*" | sed 's|\([^<>]*\)</Name><CreationDate>\([^<>]*\)|\2 \1|g;'
       fi
       ;;
     *)
-      Response=$(CanonicalQueryString='list-type=2' Get "$@")
+      # If there is an argument, list the objects.
+      BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/\(.*\)|\1|' )
+      Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|' )
+      CanonicalQueryString="list-type=2$([ "${Prefix}" ] && echo "&prefix=${Prefix}")"
+      SetIAMVariables
+      GenerateAWSSignatureV4
+      Response=$(RunAPI)
       if echo "${Response}" | grep -q "<Error>.*</Error>"; then
-        echo "${Response}"
-        exit 1
+        echo "${Response}" && exit 1
       else
-        echo "${Response}" \
-          | grep -Eo "[^<>]*</Key><LastModified>[^<>]*" \
-          | sed 's|\([^<>]*\)</Key><LastModified>\([^<>]*\)|\2 \1|g;'
+        echo "${Response}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
       fi
       ;;
   esac
