@@ -181,6 +181,7 @@ RunAPI() {
 }
 
 Get() {
+  [ "$#" = 0 ] && Help && exit 1
   BucketPath="$(echo "$1" | sed 's|s3://||')"
   CanonicalQueryString=""
   SetIAMVariables
