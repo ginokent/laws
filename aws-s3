@@ -79,7 +79,7 @@ Cat() {
     fi
 
     # check S3 path format argument.
-    if printf "${arg}" | grep -Eq 's3://[0-9A-Za-z\-\.]+/.+'; then
+    if printf "${arg}" | grep -Eq 's3://[0-9A-Za-z\.\-]+/.+'; then
       BucketPath=$(printf "${arg}" | sed 's|s3://||g')
     else
       Help && exit 1
