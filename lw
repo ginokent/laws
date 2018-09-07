@@ -68,7 +68,7 @@ SHA256Hash() {
   printf "$1" | openssl dgst -sha256 | sed 's/^.* //'
 }
 
-SetIAMKeys() {
+SetIAMVariables() {
   if [ "${AWS_REGION}" ] && [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
     # get Region AccessKeyId SecretAccessKey from environment variables
     Region=${AWS_REGION}
@@ -91,7 +91,7 @@ SetIAMKeys() {
         echo "    $ export AWS_REGION=ap-northeast-1"
         echo "    $ export AWS_ACCESS_KEY_ID=AKIA****************"
         echo "    $ export AWS_SECRET_ACCESS_KEY=****************************************"
-      )" | awk '{print "[ERROR] "$0}' >/dev/stderr
+      )" | sed 's/^/[ERROR] /' >/dev/stderr
       exit 1
     fi
   fi
@@ -99,11 +99,11 @@ SetIAMKeys() {
 
 Get() {
   # get IAM variables
-  SetIAMKeys
+  SetIAMVariables
 
   if [ "$1" ]; then
     BucketPath=$(printf "$1" | sed 's|s3://||g')
-  elif [ "${ListBuckets}" = true ]; then
+  elif [ -z "${CanonicalQueryString}" ]; then
     BucketPath=""
   else
     Help && exit 1
@@ -165,7 +165,7 @@ List() {
   # check sub commands
   case $1 in
     "")
-      Response=$(ListBuckets=true Get)
+      Response=$(Get)
       if echo "${Response}" | grep -q "<Error>.*</Error>"; then
         echo "${Response}"
         exit 1
