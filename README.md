@@ -14,14 +14,14 @@ Display help.
     $ lw help
 
 
-#### `s3 list [<bucket>]`
+#### `s3 list`
 list the contents on Amazon S3.  
 
-    $ lw s3 list [<your-bucket>]
-    $ lw s3 ls [<your-bucket>]
+    $ lw s3 list [<your-bucket>[<prefix>]]
+    $ lw s3 ls [<your-bucket>[<prefix>]]
 
 
-#### `s3 get <s3path>`
+#### `s3 get`
 get the contents of the file on Amazon S3.  
 
     $ lw s3 get s3://your-bucket/path/to/file
@@ -45,4 +45,6 @@ This program relies heavily on "AWS Signature Version 4".
   - Signature Calculations for the Authorization Header:  
       Transferring Payload in a Single Chunk (AWS Signature Version 4) - Amazon Simple Storage Service  
     https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html  
+  - GET Bucket (List Objects) Version 2  
+    https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
 
