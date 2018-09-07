@@ -1,5 +1,4 @@
 #!/bin/sh
-# shellcheck disable=SC2059
 
 readonly VERSION="0.0.1"
 
@@ -59,15 +58,15 @@ HELP
 }
 
 Hex() {
-  printf "$1" | od -v -A n -t x1 | while read -r LINE; do printf "${LINE}"; done | sed 's/[^[:graph:]]//g'
+  printf "%s" "$1" | od -v -A n -t x1 | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/[^[:graph:]]//g'
 }
 
 HMAC() {
-  printf "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
+  printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
 }
 
 SHA256Hash() {
-  printf "$1" | openssl dgst -sha256 | sed 's/^.* //'
+  printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
 }
 
 SetIAMVariables() {
@@ -129,24 +128,24 @@ GenerateAWSSignatureV4() {
     HMAC "$(HMAC "$(HMAC "$(HMAC "$(HMAC "$(Hex "AWS4${SecretAccessKey}")" "${DateYMD}")" "${Region}")" "s3")" "aws4_request")" "${StringtoSign}"
   )
   Authorization=$(
-    printf "AWS4-HMAC-SHA256"
-    printf " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
-    printf " SignedHeaders=host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf ";x-amz-security-token"),"
-    printf " Signature=${Signature}"
+    printf "%s" "AWS4-HMAC-SHA256"
+    printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
+    printf "%s" " SignedHeaders=host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf "%s" ";x-amz-security-token"),"
+    printf "%s" " Signature=${Signature}"
   )
 }
 
 RunAPI() {
   # run Amazon S3 REST API
   if [ "${STSToken}" ]; then
-    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "?${CanonicalQueryString}")" \
+    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
       -H "Host: ${S3Endpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
       -H "x-amz-security-token: ${STSToken}" \
       -H "Authorization: ${Authorization}"
   else
-    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "?${CanonicalQueryString}")" \
+    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
       -H "Host: ${S3Endpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
