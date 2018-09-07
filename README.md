@@ -14,14 +14,14 @@ Display help.
     $ lw help
 
 
-#### `s3 list [bucket]`
+#### `s3 list [<bucket>]`
 list the contents on Amazon S3.  
 
-    $ lw s3 list [bucket]
-    $ lw s3 ls [bucket]
+    $ lw s3 list [<bucket>]
+    $ lw s3 ls [<bucket>]
 
 
-#### `s3 get`
+#### `s3 get <s3path>`
 get the contents of the file on Amazon S3.  
 
     $ lw s3 get s3://your-bucket-1/path/to/file
