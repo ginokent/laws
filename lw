@@ -52,6 +52,8 @@ This program relies heavily on "AWS Signature Version 4".
   - Signature Calculations for the Authorization Header:  
       Transferring Payload in a Single Chunk (AWS Signature Version 4) - Amazon Simple Storage Service  
     https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html  
+  - GET Bucket (List Objects) Version 2  
+    https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
 
 HELP
 }
@@ -101,38 +103,41 @@ Get() {
   # get IAM variables
   SetIAMVariables
 
-  if [ "$1" ]; then
-    BucketPath=$(printf "$1" | sed 's|s3://||g')
-  elif [ -z "${CanonicalQueryString}" ]; then
+  if [ "$#" = 0 ]; then
     BucketPath=""
+  elif [ "$#" = 1 ]; then
+    BucketPath=$(echo "$1" | sed 's|s3://||g')
+  elif [ "$#" = 2 ]; then
+    BucketPath=$(echo "$1" | sed 's|s3://||g')
+    CanonicalQueryString="${CanonicalQueryString} ${Prefix}"
   else
     Help && exit 1
   fi
 
   # generate AWS Signature Version 4 for Amazon S3 REST API
-  S3Endpoint=$([ "$1" = us-east-1 ] && printf "s3.amazonaws.com" || printf "s3-${Region}.amazonaws.com")
+  S3Endpoint=$([ "$1" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
   Payload=""
-  HashedPayload=$(printf "${Payload}" | openssl dgst -sha256 | sed 's/^.* //')
+  HashedPayload=$(printf "%s" "${Payload}" | openssl dgst -sha256 | sed 's/^.* //')
   CanonicalRequest=$(
     # ** blank lines are required **
-    printf "GET\n"
-    printf "/${BucketPath}\n"
-    printf "${CanonicalQueryString}\n"
-    printf "host:${S3Endpoint}\n"
-    printf "x-amz-content-sha256:${HashedPayload}\n"
-    printf "x-amz-date:${DateISO8601}\n"
-    [ "${STSToken}" ] && printf "x-amz-security-token:${STSToken}\n"
-    printf "\n"
-    printf "host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf ";x-amz-security-token")\n"
-    printf "${HashedPayload}"
+    printf "%s\n" "GET"
+    printf "%s\n" "/${BucketPath}"
+    printf "%s\n" "${CanonicalQueryString}"
+    printf "%s\n" "host:${S3Endpoint}"
+    printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
+    printf "%s\n" "x-amz-date:${DateISO8601}"
+    [ "${STSToken}" ] && printf "%s\n" "x-amz-security-token:${STSToken}"
+    printf "%s\n" ""
+    printf "%s\n" "host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf "%s" ";x-amz-security-token")"
+    printf "%s\n" "${HashedPayload}"
   )
   StringtoSign=$(
-    printf "AWS4-HMAC-SHA256\n"
-    printf "${DateISO8601}\n"
-    printf "${DateYMD}/${Region}/s3/aws4_request\n"
-    printf "$(SHA256Hash "${CanonicalRequest}")"
+    printf "%s\n" "AWS4-HMAC-SHA256"
+    printf "%s\n" "${DateISO8601}"
+    printf "%s\n" "${DateYMD}/${Region}/s3/aws4_request"
+    printf "%s\n" "$(SHA256Hash "${CanonicalRequest}")"
   )
   Signature=$(
     HMAC "$(HMAC "$(HMAC "$(HMAC "$(HMAC "$(Hex "AWS4${SecretAccessKey}")" "${DateYMD}")" "${Region}")" "s3")" "aws4_request")" "${StringtoSign}"
