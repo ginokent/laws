@@ -6,11 +6,16 @@ Simple shell script with very little dependency.
 Like a **L**one **W**olf that does not depend on anyone... _(:3」∠)_  
 
 
+## TL;DR
+
+    curl -sS https://raw.githubusercontent.com/djeeno/lw/master/lw | sh /dev/stdin s3 ls
+
+
 ## Usage:
 
 When executing this script,
-  - please use it on EC2 which has IAM Role allowed access to Amazon S3,
-  - or set `region`, `aws_access_key_id`, `aws_secret_access_key` in `~/.aws/credentials` and `~/.aws/config` and set environment variable `AWS_PROFILE`,
+  - Please use it on EC2 which has IAM Role allowed access to Amazon S3,
+  - or save `~/.aws/config` and `~/.aws/credentials`,
   - or set the following environment variables:
 
     ```
@@ -27,14 +32,14 @@ Display help.
 
 
 #### `s3 list`
-list the contents on Amazon S3.  
+List the contents on Amazon S3.  
 
     $ lw s3 list [<your-bucket>[<prefix>]]
     $ lw s3 ls [<your-bucket>[<prefix>]]
 
 
 #### `s3 get`
-get the contents of the file on Amazon S3.  
+Get the contents of the file on Amazon S3.  
 
     $ lw s3 get s3://your-bucket/path/to/file
     $ lw s3 cat s3://your-bucket/path/to/file
