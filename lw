@@ -193,17 +193,18 @@ CanonicalHeader() {
 
 CanonicalRequest() {
   # ** blank lines are required **
-  printf "%s\n" "GET"
+  printf "%s\n" "${HTTPMethod}"
   printf "%s\n" "/${BucketPath}"
   printf "%s\n" "${CanonicalQueryString}"
   printf "%s\n" "$(CanonicalHeader)"
   printf "%s\n" ""
-  printf "%s\n" "$(CanonicalHeader | while read LINE; do printf "%s<Delimiter>" "${LINE}"; done | sed 's/:[^<]*<Delimiter>/;/g; s/;$//')"
+  printf "%s\n" "$(CanonicalHeader | sed 's/:.*/;/g' | while read LINE; do printf "%s" "${LINE}"; done | sed 's/;$//')"
   printf "%s\n" "${HashedPayload}"
 }
 
 SetAWSSignatureV4ForS3Get() {
   # generate AWS Signature Version 4 for Amazon S3 REST API
+  HTTPMethod="GET"
   APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
@@ -222,7 +223,7 @@ SetAWSSignatureV4ForS3Get() {
   Authorization=$(
     printf "%s" "AWS4-HMAC-SHA256"
     printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
-    printf "%s" " SignedHeaders=host;x-amz-content-sha256;x-amz-date$(if [ "${STSToken}" ]; then printf "%s" ";x-amz-security-token"; fi),"
+    printf "%s" " SignedHeaders=$(CanonicalHeader | sed 's/:.*/;/g' | while read LINE; do printf "%s" "${LINE}"; done | sed 's/;$//'),"
     printf "%s" " Signature=${Signature}"
   )
 }
