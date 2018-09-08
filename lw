@@ -2,6 +2,8 @@
 
 readonly VERSION="0.0.1"
 
+set -e
+
 Help() {
 cat <<"HELP" >/dev/stderr
 
@@ -63,16 +65,31 @@ This program relies heavily on "AWS Signature Version 4".
 HELP
 }
 
+CheckDependency() {
+  for cmd in cat curl date grep od openssl printf sed tr '[' ; do
+    if ! command -v "${cmd}" >/dev/null; then
+      echo "[ERROR] CheckDependency: ${cmd} not found in PATH=\"${PATH}\"" && exit 1
+    fi
+  done
+}; CheckDependency
+
 Hex() {
-  printf "%s" "$1" | od -v -A n -t x1 | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/[^[:graph:]]//g'
+  printf "%s" "$1" \
+    | od -v -A n -t x1 \
+    | while read -r LINE; do printf "%s" "${LINE}"; done \
+    | sed 's/[^[:graph:]]//g'
 }
 
 HMAC() {
-  printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
+  printf "%s" "$2" \
+    | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" \
+    | sed 's/^.* //'
 }
 
 SHA256Hash() {
-  printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
+  printf "%s" "$1" \
+    | openssl dgst -sha256 \
+    | sed 's/^.* //'
 }
 
 SetIAMAndRegion() {
@@ -119,8 +136,7 @@ SetIAMAndRegion() {
         echo "    $ export AWS_REGION=ap-northeast-1"
         echo "    $ export AWS_ACCESS_KEY_ID=AKIA****************"
         echo "    $ export AWS_SECRET_ACCESS_KEY=****************************************"
-      )" | sed 's/^/[ERROR] /' >/dev/stderr
-      exit 1
+      )" | sed 's/^/[ERROR] /' >/dev/stderr && exit 1
     fi
   fi
 }
@@ -140,7 +156,7 @@ SetAWSSignatureV4ForS3Get() {
     printf "%s\n" "host:${APIEndpoint}"
     printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
     printf "%s\n" "x-amz-date:${DateISO8601}"
-    [ "${STSToken}" ] && printf "%s\n" "x-amz-security-token:${STSToken}"
+    if [ "${STSToken}" ]; then printf "%s\n" "x-amz-security-token:${STSToken}"; fi
     printf "%s\n" ""
     printf "%s\n" "host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf "%s" ";x-amz-security-token")"
     printf "%s\n" "${HashedPayload}"
@@ -157,7 +173,7 @@ SetAWSSignatureV4ForS3Get() {
   Authorization=$(
     printf "%s" "AWS4-HMAC-SHA256"
     printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
-    printf "%s" " SignedHeaders=host;x-amz-content-sha256;x-amz-date$([ "${STSToken}" ] && printf "%s" ";x-amz-security-token"),"
+    printf "%s" " SignedHeaders=host;x-amz-content-sha256;x-amz-date$(if [ "${STSToken}" ]; then printf "%s" ";x-amz-security-token"; fi),"
     printf "%s" " Signature=${Signature}"
   )
 }
@@ -165,14 +181,14 @@ SetAWSSignatureV4ForS3Get() {
 CallAPIS3Get() {
   # run Amazon S3 REST API
   if [ "${STSToken}" ]; then
-    curl -LsS "https://${APIEndpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
+    curl -LsS "https://${APIEndpoint}/${BucketPath}$(if [ "${CanonicalQueryString}" ]; then printf "%s" "?${CanonicalQueryString}"; fi)" \
       -H "Host: ${APIEndpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
       -H "x-amz-security-token: ${STSToken}" \
       -H "Authorization: ${Authorization}"
   else
-    curl -LsS "https://${APIEndpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
+    curl -LsS "https://${APIEndpoint}/${BucketPath}$(if [ "${CanonicalQueryString}" ]; then printf "%s" "?${CanonicalQueryString}"; fi)" \
       -H "Host: ${APIEndpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
@@ -200,7 +216,7 @@ List() {
       SetIAMAndRegion
       BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/\(.*\)|\1|' )
       Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|; s|/|%2F|g')
-      CanonicalQueryString="list-type=2$([ "${Prefix}" ] && echo "&prefix=${Prefix}")"
+      CanonicalQueryString="list-type=2$(if [ "${Prefix}" ]; then echo "&prefix=${Prefix}"; fi)"
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>.*</Error>"; then
