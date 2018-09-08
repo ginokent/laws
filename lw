@@ -194,7 +194,7 @@ CanonicalHeader() {
 CanonicalRequest() {
   # ** blank lines are required **
   printf "%s\n" "${HTTPMethod}"
-  printf "%s\n" "/${BucketPath}"
+  printf "%s\n" "${BucketPath}"
   printf "%s\n" "${CanonicalQueryString}"
   printf "%s\n" "$(CanonicalHeader)"
   printf "%s\n" ""
@@ -231,14 +231,14 @@ SetAWSSignatureV4ForS3Get() {
 CallAPIS3Get() {
   # run Amazon S3 REST API
   if [ "${STSToken}" ]; then
-    curl -LsS "https://${APIEndpoint}/${BucketPath}$(if [ "${CanonicalQueryString}" ]; then printf "%s" "?${CanonicalQueryString}"; fi)" \
+    curl -LsS "https://${APIEndpoint}${BucketPath}$(if [ "${CanonicalQueryString}" ]; then printf "%s" "?${CanonicalQueryString}"; fi)" \
       -H "Host: ${APIEndpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
       -H "x-amz-security-token: ${STSToken}" \
       -H "Authorization: ${Authorization}"
   else
-    curl -LsS "https://${APIEndpoint}/${BucketPath}$(if [ "${CanonicalQueryString}" ]; then printf "%s" "?${CanonicalQueryString}"; fi)" \
+    curl -LsS "https://${APIEndpoint}${BucketPath}$(if [ "${CanonicalQueryString}" ]; then printf "%s" "?${CanonicalQueryString}"; fi)" \
       -H "Host: ${APIEndpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
@@ -252,7 +252,7 @@ List() {
     "")
       # If there is no argument, list the buckets.
       SetIAMAndRegion
-      BucketPath="" CanonicalQueryString=""
+      BucketPath="/" CanonicalQueryString=""
       SetAWSSignatureV4ForS3Get
       APIResponse=$(CallAPIS3Get)
       if echo "${APIResponse}" | grep -q "<Error>"; then
@@ -264,7 +264,7 @@ List() {
     *)
       # If there is an argument, list the objects.
       SetIAMAndRegion
-      BucketPath=$(ExtractHost "$1")
+      BucketPath="/$(ExtractHost "$1")"
       CanonicalQueryString="list-type=2"
       if [ "${NextContinuationToken}" ]; then
         CanonicalQueryString="continuation-token=${NextContinuationToken}&${CanonicalQueryString}"
@@ -291,7 +291,7 @@ List() {
 Get() {
   [ "$#" = 0 ] && Help && exit 1
   SetIAMAndRegion
-  BucketPath=$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")
+  BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
   CanonicalQueryString=""
   SetAWSSignatureV4ForS3Get
   CallAPIS3Get
