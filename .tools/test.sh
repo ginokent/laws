@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -x
 
@@ -14,7 +14,7 @@ $(./lw s3 list "s3://$(set +x; echo "${TEST_01}" | grep -Ev '^$|\$' | head -1 | 
 
 printf "\n\e[32m%s\e[0m\n" "$(LANG=C date) [TEST]  Get object"
 TEST_03="
-$(./lw s3 get "s3://$(set +x; echo "${TEST_01}" | grep -Ev '^$|\$' | head -1 | sed 's/[^[:space:]]*[[:space:]]//')/$(set +x; echo "${TEST_02}" | grep -Ev '^$|\$' | head -1 | sed 's/[^[:space:]]*[[:space:]]//')" | head -10 | strings)
+$(./lw s3 get "s3://$(set +x; echo "${TEST_01}" | grep -Ev '^$|\$' | head -1 | sed 's/[^[:space:]]*[[:space:]]//')/$(set +x; echo "${TEST_02}" | grep -Ev '^$|\$' | head -1 | sed 's/[^[:space:]]*[[:space:]]//')" | LANG=C sed 's/[^[:graph:][:space:]]*//g' | head -10)
 "
 
 printf "\n\e[32m%s\e[0m\n" "$(LANG=C date) [TEST]  List buckets"
@@ -29,7 +29,7 @@ $(./lw s3 list "s3://$(set +x; echo "${TEST_04}" | grep -Ev '^$|\$' | tail -1 | 
 
 printf "\n\e[32m%s\e[0m\n" "$(LANG=C date) [TEST]  Get object"
 TEST_06="
-$(./lw s3 get "s3://$(set +x; echo "${TEST_04}" | grep -Ev '^$|\$' | tail -1 | sed 's/[^[:space:]]*[[:space:]]//')/$(set +x; echo "${TEST_05}" | grep -Ev '^$|\$' | tail -1 | sed 's/[^[:space:]]*[[:space:]]//')" | tail -10 | strings)
+$(./lw s3 get "s3://$(set +x; echo "${TEST_04}" | grep -Ev '^$|\$' | tail -1 | sed 's/[^[:space:]]*[[:space:]]//')/$(set +x; echo "${TEST_05}" | grep -Ev '^$|\$' | tail -1 | sed 's/[^[:space:]]*[[:space:]]//')" | LANG=C sed 's/[^[:graph:][:space:]]*//g' | tail -10)
 "
 
 
