@@ -178,11 +178,11 @@ ExtractPath() {
 }
 
 UriEncodeWithoutSlash() {
-  printf "%s" "$1" | sed 's|+|%2B|g; s|=|%3D|g;'
+  printf "%s" "$1" | sed 's|+|%2B|g; s|=|%3D|g; s|\$|%24|g' # TODO: Perhaps the character `$` may not be handled.
 }
 
 UriEncode() {
-  printf "%s" "$1" | sed 's|/|%2F|g; s|+|%2B|g; s|=|%3D|g;'
+  UriEncodeWithoutSlash "$1" | sed 's|/|%2F|g'
 }
 
 CanonicalHeader() {
