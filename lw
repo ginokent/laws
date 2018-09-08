@@ -130,11 +130,10 @@ GenerateAWSSignatureV4() {
   S3Endpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
-  Payload=""
   HashedPayload=$(printf "%s" "${Payload}" | openssl dgst -sha256 | sed 's/^.* //')
   CanonicalRequest=$(
     # ** blank lines are required **
-    printf "%s\n" "GET"
+    printf "%s\n" "${HttpMethod}"
     printf "%s\n" "/${BucketPath}"
     printf "%s\n" "${CanonicalQueryString}"
     printf "%s\n" "host:${S3Endpoint}"
@@ -182,6 +181,7 @@ RunAPI() {
 
 Get() {
   [ "$#" = 0 ] && Help && exit 1
+  HttpMethod="GET" Payload=""
   BucketPath="$(echo "$1" | sed 's|s3://||')"
   CanonicalQueryString=""
   SetIAMVariables
@@ -194,8 +194,8 @@ List() {
   case $1 in
     "")
       # If there is no argument, list the buckets.
-      BucketPath=""
-      CanonicalQueryString=""
+      HttpMethod="GET" Payload=""
+      BucketPath="" CanonicalQueryString=""
       SetIAMVariables
       GenerateAWSSignatureV4
       Response=$(RunAPI)
@@ -207,6 +207,7 @@ List() {
       ;;
     *)
       # If there is an argument, list the objects.
+      HttpMethod="GET" Payload=""
       BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/\(.*\)|\1|' )
       Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|; s|/|%2F|g')
       CanonicalQueryString="list-type=2$([ "${Prefix}" ] && echo "&prefix=${Prefix}")"
