@@ -16,7 +16,7 @@ Like a **L**one **W**olf that does not depend on anyone... _(:3」∠)_
 
 ## TL;DR
 
-    curl -sS https://raw.githubusercontent.com/djeeno/lw/master/lw | bash /dev/stdin s3 ls
+    curl -sS https://raw.githubusercontent.com/djeeno/lw/master/lw | sh /dev/stdin s3 ls
 
 
 ## Usage:
