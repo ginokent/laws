@@ -75,7 +75,7 @@ SHA256Hash() {
   printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
 }
 
-SetIAMVariables() {
+SetIAMAndRegion() {
   # get variables from environment
   if ! ([ "${Region}" ] && [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]); then
     if [ "${AWS_REGION}" ] && [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
@@ -125,15 +125,16 @@ SetIAMVariables() {
   fi
 }
 
-GenerateAWSSignatureV4() {
+SetAWSSignatureV4ForS3Get() {
   # generate AWS Signature Version 4 for Amazon S3 REST API
   APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
+  Payload=""
   HashedPayload=$(printf "%s" "${Payload}" | openssl dgst -sha256 | sed 's/^.* //')
   CanonicalRequest=$(
     # ** blank lines are required **
-    printf "%s\n" "${HttpMethod}"
+    printf "%s\n" "GET"
     printf "%s\n" "/${BucketPath}"
     printf "%s\n" "${CanonicalQueryString}"
     printf "%s\n" "host:${APIEndpoint}"
@@ -161,7 +162,7 @@ GenerateAWSSignatureV4() {
   )
 }
 
-RunAPI() {
+CallAPIS3Get() {
   # run Amazon S3 REST API
   if [ "${STSToken}" ]; then
     curl -LsS "https://${APIEndpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
@@ -179,28 +180,15 @@ RunAPI() {
   fi
 }
 
-Get() {
-  [ "$#" = 0 ] && Help && exit 1
-  APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
-  HttpMethod="GET" Payload=""
-  BucketPath="$(echo "$1" | sed 's|s3://||')"
-  CanonicalQueryString=""
-  SetIAMVariables
-  GenerateAWSSignatureV4
-  RunAPI
-}
-
 List() {
   # check sub commands
   case $1 in
     "")
       # If there is no argument, list the buckets.
-      APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
-      HttpMethod="GET" Payload=""
+      SetIAMAndRegion
       BucketPath="" CanonicalQueryString=""
-      SetIAMVariables
-      GenerateAWSSignatureV4
-      Response=$(RunAPI)
+      SetAWSSignatureV4ForS3Get
+      Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>.*</Error>"; then
         echo "${Response}" && exit 1
       else
@@ -209,14 +197,12 @@ List() {
       ;;
     *)
       # If there is an argument, list the objects.
-      APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
-      HttpMethod="GET" Payload=""
+      SetIAMAndRegion
       BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/\(.*\)|\1|' )
       Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|; s|/|%2F|g')
       CanonicalQueryString="list-type=2$([ "${Prefix}" ] && echo "&prefix=${Prefix}")"
-      SetIAMVariables
-      GenerateAWSSignatureV4
-      Response=$(RunAPI)
+      SetAWSSignatureV4ForS3Get
+      Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>.*</Error>"; then
         echo "${Response}" && exit 1
       else
@@ -226,16 +212,25 @@ List() {
   esac
 }
 
+Get() {
+  [ "$#" = 0 ] && Help && exit 1
+  SetIAMAndRegion
+  BucketPath=$(echo "$1" | sed 's|s3://||')
+  CanonicalQueryString=""
+  SetAWSSignatureV4ForS3Get
+  CallAPIS3Get
+}
+
 S3() {
   # check arguments num
   [ "$#" = 0 ] && Help && exit 1
   # check sub commands
   case $1 in
-    get|cat)
-      shift && Get "$@"
-      ;;
     list|ls)
       shift && List "$@"
+      ;;
+    get|cat)
+      shift && Get "$@"
       ;;
     *)
       Help && exit 1
