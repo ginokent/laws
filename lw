@@ -137,30 +137,31 @@ SetIAMAndRegion() {
 
     # if STSToken is null, regarding as not running on EC2.
     if [ -z "${STSToken}" ]; then
-      echo "$(
-        echo "SetIAMAndRegion: Failed to connect http://169.254.169.254/"
-        echo "Follow the steps below to register your credentials:"
-        echo ""
-        echo "1. Save config as: ~/.aws/config"
-        echo ""
-        echo "    [default]"
-        echo "    region = ap-northeast-1"
-        echo ""
-        echo "2. Save credentials file as: ~/.aws/credentials"
-        echo ""
-        echo "    [default]"
-        echo "    aws_access_key_id = AKIA****************"
-        echo "    aws_secret_access_key = ****************************************"
-        echo ""
-        echo " ** OR **"
-        echo ""
-        echo "1. Set environment variables:"
-        echo ""
-        echo "    $ export AWS_REGION=ap-northeast-1"
-        echo "    $ export AWS_ACCESS_KEY_ID=AKIA****************"
-        echo "    $ export AWS_SECRET_ACCESS_KEY=****************************************"
-        echo " "
-      )" | sed 's/^/[ERROR] /' >/dev/stderr && exit 1
+      cat <<"ERROR" | sed 's/^/[ERROR] /' >/dev/stderr && exit 1
+
+SetIAMAndRegion: Failed to connect http://169.254.169.254/
+Follow the steps below to register your credentials:
+
+1. Save config as: ~/.aws/config
+
+    [default]
+    region = ap-northeast-1
+
+2. Save credentials file as: ~/.aws/credentials
+
+    [default]
+    aws_access_key_id = AKIA****************
+    aws_secret_access_key = ****************************************
+
+ ** OR **
+
+1. Set environment variables:
+
+    $ export AWS_REGION=ap-northeast-1
+    $ export AWS_ACCESS_KEY_ID=AKIA****************
+    $ export AWS_SECRET_ACCESS_KEY=****************************************
+
+ERROR
     fi
   fi
 }
