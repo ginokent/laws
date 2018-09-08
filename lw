@@ -237,8 +237,8 @@ List() {
     *)
       # If there is an argument, list the objects.
       SetIAMAndRegion
-      BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/.*|\1|')
-      Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|[^/]*/\(.*\)|\1|; s|/|%2F|g; s|+|%2B|g; s|=|%3D|g;')
+      BucketPath=$(echo "$1" | sed 's|s3://||; s|+|%2B|g; s|=|%3D|g' | sed 's|\([^/]*\)/.*|\1|')
+      Prefix=$(echo "$1" | sed 's|s3://||; s|+|%2B|g; s|=|%3D|g' | grep '/' | sed 's|[^/]*/\(.*\)|\1|; s|/|%2F|g; s|+|%2B|g; s|=|%3D|g;')
       NextContinuationToken="${NextContinuationToken:=""}"
       CanonicalQueryString="$(
         if [ "${NextContinuationToken}" ]; then printf "%s" "continuation-token=${NextContinuationToken}&"; fi
@@ -263,7 +263,7 @@ List() {
 Get() {
   [ "$#" = 0 ] && Help && exit 1
   SetIAMAndRegion
-  BucketPath=$(echo "$1" | sed 's|s3://||')
+  BucketPath=$(echo "$1" | sed 's|s3://||; s|+|%2B|g; s|=|%3D|g')
   CanonicalQueryString=""
   SetAWSSignatureV4ForS3Get
   CallAPIS3Get
