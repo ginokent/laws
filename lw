@@ -209,7 +209,7 @@ SetAWSSignatureV4ForS3Get() {
   APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
-  HashedPayload=$(HashedPayload "${Payload}")
+  HashedPayload=$(SHA256Hash "${Payload}")
   CanonicalRequest=$(CanonicalRequest)
   StringtoSign=$(
     printf "%s\n" "AWS4-HMAC-SHA256"
