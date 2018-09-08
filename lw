@@ -228,7 +228,7 @@ List() {
       BucketPath="" CanonicalQueryString=""
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
-      if echo "${Response}" | grep -q "<Error>.*</Error>"; then
+      if echo "${Response}" | grep -q "<Error>"; then
         echo "${Response}" && exit 1
       else
         echo "${Response}" | grep -Eo "[^<>]*</Name><CreationDate>[^<>]*" | sed 's|\([^<>]*\)</Name><CreationDate>\([^<>]*\)|\2 \1|g;'
@@ -237,8 +237,8 @@ List() {
     *)
       # If there is an argument, list the objects.
       SetIAMAndRegion
-      BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/\(.*\)|\1|' )
-      Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|; s|/|%2F|g')
+      BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/.*|\1|')
+      Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|[^/]*/\(.*\)|\1|; s|/|%2F|g; s|+|%2B|g; s|=|%3D|g;')
       NextContinuationToken="${NextContinuationToken:=""}"
       CanonicalQueryString="$(
         if [ "${NextContinuationToken}" ]; then printf "%s" "continuation-token=${NextContinuationToken}&"; fi
@@ -247,7 +247,7 @@ List() {
       )"
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
-      if echo "${Response}" | grep -q "<Error>.*</Error>"; then
+      if echo "${Response}" | grep -q "<Error>"; then
         echo "${Response}" && exit 1
       else
         echo "${Response}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
