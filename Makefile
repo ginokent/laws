@@ -16,3 +16,4 @@ shellcheck:
 readme:
 	@./lw 2>&1 | tee ./README.md >/dev/null
 	git diff ./README.md
+	@echo
