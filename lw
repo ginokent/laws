@@ -257,14 +257,13 @@ List() {
       if echo "${Response}" | grep -q "<Error>"; then
         echo "${Response}" && exit 1
       else
-        echo "${Response}" | grep -Eo "[^<>]*</Name><CreationDate>[^<>]*" | sed 's|\([^<>]*\)</Name><CreationDate>\([^<>]*\)|\2 \1|g;'
+        echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
       fi
       ;;
     *)
       # If there is an argument, list the objects.
       SetIAMAndRegion
       BucketPath=$(ExtractHost "$1")
-      #Prefix=$(echo "$1" | sed 's|s3://||; s|+|%2B|g; s|=|%3D|g' | grep '/' | sed 's|[^/]*/\(.*\)|\1|; s|/|%2F|g; s|+|%2B|g; s|=|%3D|g;')
       Prefix=$(UriEncode "$(ExtractPath "$1" | sed 's|^/||')")
       CanonicalQueryString="list-type=2"
       if [ "${NextContinuationToken}" ]; then
