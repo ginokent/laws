@@ -239,13 +239,22 @@ List() {
       SetIAMAndRegion
       BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/\(.*\)|\1|' )
       Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|; s|/|%2F|g')
-      CanonicalQueryString="list-type=2$(if [ "${Prefix}" ]; then echo "&prefix=${Prefix}"; fi)"
+      NextContinuationToken="${NextContinuationToken:=""}"
+      CanonicalQueryString="$(
+        if [ "${NextContinuationToken}" ]; then printf "%s" "continuation-token=${NextContinuationToken}&"; fi
+      )list-type=2$(
+        if [ "${Prefix}" ]; then printf "%s" "&prefix=${Prefix}"; fi
+      )"
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>.*</Error>"; then
         echo "${Response}" && exit 1
       else
         echo "${Response}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
+        if echo "${Response}" | grep -q "<NextContinuationToken>.*</NextContinuationToken>"; then
+          NextContinuationToken=$(echo "${Response}" | grep -Eo "<NextContinuationToken>[^<>]*</NextContinuationToken>" | sed 's|</*NextContinuationToken>||g; s|/|%2F|g; s|+|%2B|g; s|=|%3D|g;')
+          List "$@"
+        fi
       fi
       ;;
   esac
