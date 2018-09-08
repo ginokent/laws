@@ -253,33 +253,33 @@ List() {
       SetIAMAndRegion
       BucketPath="" CanonicalQueryString=""
       SetAWSSignatureV4ForS3Get
-      Response=$(CallAPIS3Get)
-      if echo "${Response}" | grep -q "<Error>"; then
-        echo "${Response}" && exit 1
+      APIResponse=$(CallAPIS3Get)
+      if echo "${APIResponse}" | grep -q "<Error>"; then
+        echo "${APIResponse}" && exit 1
       else
-        echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
+        echo "${APIResponse}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
       fi
       ;;
     *)
       # If there is an argument, list the objects.
       SetIAMAndRegion
       BucketPath=$(ExtractHost "$1")
-      Prefix=$(UriEncode "$(ExtractPath "$1" | sed 's|^/||')")
       CanonicalQueryString="list-type=2"
       if [ "${NextContinuationToken}" ]; then
         CanonicalQueryString="continuation-token=${NextContinuationToken}&${CanonicalQueryString}"
       fi
+      Prefix=$(UriEncode "$(ExtractPath "$1" | sed 's|^/||')")
       if [ "${Prefix}" ]; then
         CanonicalQueryString="${CanonicalQueryString}&prefix=${Prefix}"
       fi
       SetAWSSignatureV4ForS3Get
-      Response=$(CallAPIS3Get)
-      if echo "${Response}" | grep -q "<Error>"; then
-        echo "${Response}" && exit 1
+      APIResponse=$(CallAPIS3Get)
+      if echo "${APIResponse}" | grep -q "<Error>"; then
+        echo "${APIResponse}" && exit 1
       else
-        echo "${Response}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
-        if echo "${Response}" | grep -q "<NextContinuationToken>.*</NextContinuationToken>"; then
-          NextContinuationToken=$(echo "${Response}" | grep -Eo "<NextContinuationToken>[^<>]*</NextContinuationToken>" | sed 's|</*NextContinuationToken>||g; s|/|%2F|g; s|+|%2B|g; s|=|%3D|g;')
+        echo "${APIResponse}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
+        if echo "${APIResponse}" | grep -Eq "<NextContinuationToken>[^<]*"; then
+          NextContinuationToken=$(UriEncode "$(echo "${APIResponse}" | grep -Eo "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
           List "$@"
         fi
       fi
