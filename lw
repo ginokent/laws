@@ -94,7 +94,7 @@ SHA256Hash() {
 
 SetIAMAndRegion() {
   # get variables from environment
-  if ! ([ "${Region}" ] && [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]); then
+  if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
     if [ "${AWS_REGION}" ] && [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
       # get Region AccessKeyId SecretAccessKey from environment variables
       Region=${AWS_REGION}
@@ -103,27 +103,28 @@ SetIAMAndRegion() {
     fi
   fi
   # get variables from ~/.aws/config and ~/.aws/credentials file
-  if ! ([ "${Region}" ] && [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]); then
+  if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
     if [ -r ~/.aws/credentials ]; then
-      eval $(
+      ini_region="" ini_aws_access_key_id="" ini_aws_secret_access_key=""
+      eval "$(
         cat ~/.aws/config ~/.aws/credentials 2>/dev/null \
-          | sed "s/[[:space:]]*\=[[:space:]]*/=/g; s/[#;].*$//; s/[[:space:]]*$//; s/^[[:space:]]*//; s/^\(.*\)=\([^\"\']*\)$/\1=\"\2\"/" \
-          | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/^[[:space:]]*\[/{/^[^;].*\=.*/p;}"
-      )
-      Region="${region}"
-      AccessKeyId="${aws_access_key_id}"
-      SecretAccessKey="${aws_secret_access_key}"
-      if ! ([ "${Region}" ] && [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]); then
+          | sed "s/[[:space:]]*\=[[:space:]]*/=/g; s/[#;].*$//; s/[[:space:]]*$//; s/^[[:space:]]*//; s/^\(.*\)=\([^\"\']*\)$/ini_\1=\"\2\"/" \
+          | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/\[/ {/.*\=.*/p;}"
+      )"
+      Region="${ini_region}"
+      AccessKeyId="${ini_aws_access_key_id}"
+      SecretAccessKey="${ini_aws_secret_access_key}"
+      if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
         echo "[WARN] failed to parse ~/.aws/credentials or ~/.aws/config" >/dev/stderr
       fi
     fi
   fi
   # get variables from Instance Profile
-  if ! ([ "${Region}" ] && [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]); then
+  if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
     # get Region AccessKeyId SecretAccessKey from IAM Role and Instance Profile
-    Region=$(curl -fsS --max-time 1 "http://169.254.169.254/latest/meta-data/placement/availability-zone" 2>/dev/null | sed 's/.$//')
-    IAMJSON=$(curl -fsS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/$(
-      curl -fsS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null)" 2>/dev/null)
+    Region=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/placement/availability-zone" 2>/dev/null | sed 's/.$//' || true)
+    InstanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || true)
+    IAMJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${InstanceProfile}" 2>/dev/null || true)
     AccessKeyId=$(     echo "${IAMJSON}" | grep "AccessKeyId"     | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
     SecretAccessKey=$( echo "${IAMJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
     STSToken=$(        echo "${IAMJSON}" | grep "Token"           | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
