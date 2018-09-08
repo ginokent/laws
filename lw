@@ -73,7 +73,7 @@ HELP
 CheckDependency() {
   for cmd in cat curl date grep od openssl printf sed tr '[' ; do
     if ! command -v "${cmd}" >/dev/null; then
-      echo "[ERROR] CheckDependency: ${cmd} not found in PATH=\"${PATH}\"" && exit 1
+      echo "[ERROR] CheckDependency: ${cmd} not found in PATH=${PATH}" && exit 1
     fi
   done
 }; CheckDependency
@@ -198,7 +198,7 @@ CanonicalRequest() {
   printf "%s\n" "${CanonicalQueryString}"
   printf "%s\n" "$(CanonicalHeader)"
   printf "%s\n" ""
-  printf "%s\n" "$(CanonicalHeader | sed 's/:.*/;/g' | while read LINE; do printf "%s" "${LINE}"; done | sed 's/;$//')"
+  printf "%s\n" "$(CanonicalHeader | sed 's/:.*/;/g' | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/;$//')"
   printf "%s\n" "${HashedPayload}"
 }
 
@@ -223,7 +223,7 @@ SetAWSSignatureV4ForS3Get() {
   Authorization=$(
     printf "%s" "AWS4-HMAC-SHA256"
     printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
-    printf "%s" " SignedHeaders=$(CanonicalHeader | sed 's/:.*/;/g' | while read LINE; do printf "%s" "${LINE}"; done | sed 's/;$//'),"
+    printf "%s" " SignedHeaders=$(CanonicalHeader | sed 's/:.*/;/g' | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/;$//'),"
     printf "%s" " Signature=${Signature}"
   )
 }
