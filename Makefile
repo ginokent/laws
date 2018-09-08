@@ -2,7 +2,7 @@ SHELL = /bin/bash
 
 .PHONY: all shellcheck test
 
-all: test shellcheck
+all: test shellcheck readme
 
 test:
 	@echo .tools/test.sh
@@ -12,3 +12,7 @@ test:
 shellcheck:
 	shellcheck ./lw
 	@echo
+
+readme:
+	@./lw 2>&1 | tee ./README.md >/dev/null
+	git diff ./README.md

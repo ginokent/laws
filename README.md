@@ -2,7 +2,7 @@
 lw
 ===
 
-Simple shell script with very little dependency.  
+Simple shell script for Amazon S3 with very little dependency.  
 Like a **L**one **W**olf that does not depend on anyone... _(:3」∠)_  
 
 
