@@ -1,6 +1,6 @@
 #!/bin/sh
 
-readonly VERSION="0.0.1"
+readonly VERSION="0.0.4"
 
 set -e
 
