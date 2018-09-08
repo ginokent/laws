@@ -72,7 +72,7 @@ HELP
 }
 
 CheckDependency() {
-  for cmd in cat curl date grep od openssl printf sed tr '[' ; do
+  for cmd in '[' cat curl date grep od openssl printf sed tr; do
     if ! command -v "${cmd}" >/dev/null; then
       echo "[ERROR] CheckDependency: ${cmd} not found in PATH=${PATH}" && exit 1
     fi
@@ -194,9 +194,9 @@ CanonicalHeader() {
 
 CanonicalRequest() {
   # ** blank lines are required **
-  printf "%s\n" "${HTTPMethod}"
-  printf "%s\n" "${BucketPath}"
-  printf "%s\n" "${CanonicalQueryString}"
+  printf "%s\n" "${HTTPMethod}" # GET
+  printf "%s\n" "${BucketPath}" # /your-backet
+  printf "%s\n" "${CanonicalQueryString}" # ?list-type=2&prefix=%2Fpath%2Fto%2Ffile
   printf "%s\n" "$(CanonicalHeader)"
   printf "%s\n" ""
   printf "%s\n" "$(CanonicalHeader | sed 's/:.*/;/g' | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/;$//')"
@@ -209,8 +209,7 @@ SetAWSSignatureV4ForS3Get() {
   APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
-  Payload=""
-  HashedPayload=$(printf "%s" "${Payload}" | openssl dgst -sha256 | sed 's/^.* //')
+  HashedPayload=$(HashedPayload "${Payload}")
   CanonicalRequest=$(CanonicalRequest)
   StringtoSign=$(
     printf "%s\n" "AWS4-HMAC-SHA256"
@@ -253,7 +252,9 @@ List() {
     "")
       # If there is no argument, list the buckets.
       SetIAMAndRegion
-      BucketPath="/" CanonicalQueryString=""
+      BucketPath="/"
+      CanonicalQueryString=""
+      Payload=""
       SetAWSSignatureV4ForS3Get
       APIResponse=$(CallAPIS3Get)
       if echo "${APIResponse}" | grep -q "<Error>"; then
@@ -274,6 +275,7 @@ List() {
       if [ "${Prefix}" ]; then
         CanonicalQueryString="${CanonicalQueryString}&prefix=${Prefix}"
       fi
+      Payload=""
       SetAWSSignatureV4ForS3Get
       APIResponse=$(CallAPIS3Get)
       if echo "${APIResponse}" | grep -q "<Error>"; then
@@ -294,6 +296,7 @@ Get() {
   SetIAMAndRegion
   BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
   CanonicalQueryString=""
+  Payload=""
   SetAWSSignatureV4ForS3Get
   CallAPIS3Get
 }
