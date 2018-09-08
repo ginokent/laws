@@ -127,7 +127,7 @@ SetIAMVariables() {
 
 GenerateAWSSignatureV4() {
   # generate AWS Signature Version 4 for Amazon S3 REST API
-  S3Endpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
+  APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
   HashedPayload=$(printf "%s" "${Payload}" | openssl dgst -sha256 | sed 's/^.* //')
@@ -136,7 +136,7 @@ GenerateAWSSignatureV4() {
     printf "%s\n" "${HttpMethod}"
     printf "%s\n" "/${BucketPath}"
     printf "%s\n" "${CanonicalQueryString}"
-    printf "%s\n" "host:${S3Endpoint}"
+    printf "%s\n" "host:${APIEndpoint}"
     printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
     printf "%s\n" "x-amz-date:${DateISO8601}"
     [ "${STSToken}" ] && printf "%s\n" "x-amz-security-token:${STSToken}"
@@ -164,15 +164,15 @@ GenerateAWSSignatureV4() {
 RunAPI() {
   # run Amazon S3 REST API
   if [ "${STSToken}" ]; then
-    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
-      -H "Host: ${S3Endpoint}" \
+    curl -LsS "https://${APIEndpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
+      -H "Host: ${APIEndpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
       -H "x-amz-security-token: ${STSToken}" \
       -H "Authorization: ${Authorization}"
   else
-    curl -LsS "https://${S3Endpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
-      -H "Host: ${S3Endpoint}" \
+    curl -LsS "https://${APIEndpoint}/${BucketPath}$([ "${CanonicalQueryString}" ] && printf "%s" "?${CanonicalQueryString}")" \
+      -H "Host: ${APIEndpoint}" \
       -H "x-amz-content-sha256: ${HashedPayload}" \
       -H "x-amz-date: ${DateISO8601}" \
       -H "Authorization: ${Authorization}"
@@ -181,6 +181,7 @@ RunAPI() {
 
 Get() {
   [ "$#" = 0 ] && Help && exit 1
+  APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   HttpMethod="GET" Payload=""
   BucketPath="$(echo "$1" | sed 's|s3://||')"
   CanonicalQueryString=""
@@ -194,6 +195,7 @@ List() {
   case $1 in
     "")
       # If there is no argument, list the buckets.
+      APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
       HttpMethod="GET" Payload=""
       BucketPath="" CanonicalQueryString=""
       SetIAMVariables
@@ -207,6 +209,7 @@ List() {
       ;;
     *)
       # If there is an argument, list the objects.
+      APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
       HttpMethod="GET" Payload=""
       BucketPath=$(echo "$1" | sed 's|s3://||' | sed 's|\([^/]*\)/\(.*\)|\1|' )
       Prefix=$(echo "$1" | sed 's|s3://||' | grep '/' | sed 's|\([^/]*\)/\(.*\)|\2|; s|/|%2F|g')
