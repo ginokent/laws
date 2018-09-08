@@ -164,6 +164,22 @@ SetIAMAndRegion() {
   fi
 }
 
+TrimSchemeAndSlashSlash() {
+  printf "%s" "$1" | sed 's|^[^:]*://||'
+}
+
+ExtractHost() {
+  TrimSchemeAndSlashSlash "$1" | sed 's|/.*||'
+}
+
+ExtractPath() {
+  TrimSchemeAndSlashSlash "$1" | grep '/' | sed 's|^[^/]*/|/|'
+}
+
+UriEncodeWithoutSlash() {
+  printf "%s" "$1" | sed 's|+|%2B|g; s|=|%3D|g;'
+}
+
 UriEncode() {
   printf "%s" "$1" | sed 's|/|%2F|g; s|+|%2B|g; s|=|%3D|g;'
 }
@@ -247,15 +263,16 @@ List() {
     *)
       # If there is an argument, list the objects.
       SetIAMAndRegion
-      #BucketPath=$(echo "$1" | sed 's|s3://||; s|+|%2B|g; s|=|%3D|g' | sed 's|\([^/]*\)/.*|\1|')
-      BucketPath=$(echo "$1" | sed 's|s3://||; s|/.*||')
-      Prefix=$(echo "$1" | sed 's|s3://||; s|+|%2B|g; s|=|%3D|g' | grep '/' | sed 's|[^/]*/\(.*\)|\1|; s|/|%2F|g; s|+|%2B|g; s|=|%3D|g;')
-      NextContinuationToken="${NextContinuationToken:=""}"
-      CanonicalQueryString="$(
-        if [ "${NextContinuationToken}" ]; then printf "%s" "continuation-token=${NextContinuationToken}&"; fi
-      )list-type=2$(
-        if [ "${Prefix}" ]; then printf "%s" "&prefix=${Prefix}"; fi
-      )"
+      BucketPath=$(ExtractHost "$1")
+      #Prefix=$(echo "$1" | sed 's|s3://||; s|+|%2B|g; s|=|%3D|g' | grep '/' | sed 's|[^/]*/\(.*\)|\1|; s|/|%2F|g; s|+|%2B|g; s|=|%3D|g;')
+      Prefix=$(UriEncode "$(ExtractPath "$1" | sed 's|^/||')")
+      CanonicalQueryString="list-type=2"
+      if [ "${NextContinuationToken}" ]; then
+        CanonicalQueryString="continuation-token=${NextContinuationToken}&${CanonicalQueryString}"
+      fi
+      if [ "${Prefix}" ]; then
+        CanonicalQueryString="${CanonicalQueryString}&prefix=${Prefix}"
+      fi
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>"; then
@@ -274,8 +291,7 @@ List() {
 Get() {
   [ "$#" = 0 ] && Help && exit 1
   SetIAMAndRegion
-  #BucketPath=$(echo "$1" | sed 's|s3://||; s|+|%2B|g; s|=|%3D|g')
-  BucketPath=$(echo "$1" | sed 's|s3://||; s|+|%2B|g; s|=|%3D|g')
+  BucketPath=$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")
   CanonicalQueryString=""
   SetAWSSignatureV4ForS3Get
   CallAPIS3Get
