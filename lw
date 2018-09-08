@@ -194,7 +194,7 @@ CanonicalHeader() {
 CanonicalRequest() {
   printf "%s\n" "${HTTPMethod}" # GET
   printf "%s\n" "${BucketPath}" # /your-backet
-  printf "%s\n" "$(echo "${CanonicalQueryString}" | sed 's/^?//')" # ?list-type=2&prefix=%2Fpath%2Fto%2Ffile
+  printf "%s\n" "${CanonicalQueryString}" # list-type=2&prefix=%2Fpath%2Fto%2Ffile
   printf "%s\n" "$(CanonicalHeader)"
   printf "%s\n" "" # blank lines are required
   printf "%s\n" "$(CanonicalHeader | sed 's/:.*/;/g' | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/;$//')"
@@ -227,12 +227,20 @@ SetAWSSignatureV4ForS3Get() {
 }
 
 CallAPIS3Get() {
-  eval "curl -LsS https://${APIEndpoint}${BucketPath}${CanonicalQueryString} \
-    -H 'Host: ${APIEndpoint}' \
-    -H 'x-amz-content-sha256: ${HashedPayload}' \
-    -H 'x-amz-date: ${DateISO8601}' \
-    $(if [ "${STSToken}" ]; then printf "%s" "-H 'x-amz-security-token: ${STSToken}'"; fi) \
-    -H 'Authorization: ${Authorization}'"
+  if [ "${STSToken}" ]; then
+    curl -LsS "https://${APIEndpoint}${BucketPath}$(if [ "${CanonicalQueryString}" ]; then echo "?${CanonicalQueryString}"; fi)" \
+      -H "Host: ${APIEndpoint}" \
+      -H "x-amz-content-sha256: ${HashedPayload}" \
+      -H "x-amz-date: ${DateISO8601}" \
+      -H "x-amz-security-token: ${STSToken}" \
+      -H "Authorization: ${Authorization}"
+  else
+    curl -LsS "https://${APIEndpoint}${BucketPath}$(if [ "${CanonicalQueryString}" ]; then printf "%s" "?${CanonicalQueryString}"; fi)" \
+      -H "Host: ${APIEndpoint}" \
+      -H "x-amz-content-sha256: ${HashedPayload}" \
+      -H "x-amz-date: ${DateISO8601}" \
+      -H "Authorization: ${Authorization}"
+  fi
 }
 
 List() {
@@ -256,9 +264,9 @@ List() {
       # If there is an argument, list the objects.
       SetIAMAndRegion
       BucketPath="/$(ExtractHost "$1")"
-      CanonicalQueryString="?list-type=2"
-      if [ "${NextContinuationToken}" ]; then
-        CanonicalQueryString="${CanonicalQueryString}&continuation-token=${NextContinuationToken}"
+      CanonicalQueryString="list-type=2"
+      if [ "${ContinuationToken}" ]; then
+        CanonicalQueryString="continuation-token=${ContinuationToken}&${CanonicalQueryString}"
       fi
       Prefix=$(UriEncode "$(ExtractPath "$1" | sed 's|^/||')")
       if [ "${Prefix}" ]; then
@@ -272,7 +280,7 @@ List() {
       else
         echo "${APIResponse}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
         if echo "${APIResponse}" | grep -Eq "<NextContinuationToken>[^<]*"; then
-          NextContinuationToken=$(UriEncode "$(echo "${APIResponse}" | grep -Eo "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
+          ContinuationToken=$(UriEncode "$(echo "${APIResponse}" | grep -Eo "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
           List "$@"
         fi
       fi
