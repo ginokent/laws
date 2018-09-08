@@ -264,7 +264,7 @@ List() {
       # If there is an argument, list the objects.
       SetIAMAndRegion
       BucketPath="/$(ExtractHost "$1")"
-      CanonicalQueryString="list-type=2"
+      CanonicalQueryString="list-type=2&max-keys=${MaxKeys:=1000}"
       if [ "${ContinuationToken}" ]; then
         CanonicalQueryString="continuation-token=${ContinuationToken}&${CanonicalQueryString}"
       fi
