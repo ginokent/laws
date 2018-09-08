@@ -264,14 +264,11 @@ List() {
       # If there is an argument, list the objects.
       SetIAMAndRegion
       BucketPath="/$(ExtractHost "$1")"
-      CanonicalQueryString="list-type=2&max-keys=${MaxKeys:=1000}"
-      if [ "${ContinuationToken}" ]; then
-        CanonicalQueryString="continuation-token=${ContinuationToken}&${CanonicalQueryString}"
-      fi
+      if [ -z "${MaxKeys}" ] || echo "${MaxKeys}" | grep -q '[^0-9]'; then MaxKeys=1000; fi
+      CanonicalQueryString="list-type=2&max-keys=${MaxKeys}"
+      if [ "${ContinuationToken}" ]; then CanonicalQueryString="continuation-token=${ContinuationToken}&${CanonicalQueryString}"; fi
       Prefix=$(UriEncode "$(ExtractPath "$1" | sed 's|^/||')")
-      if [ "${Prefix}" ]; then
-        CanonicalQueryString="${CanonicalQueryString}&prefix=${Prefix}"
-      fi
+      if [ "${Prefix}" ]; then CanonicalQueryString="${CanonicalQueryString}&prefix=${Prefix}"; fi
       Payload=""
       SetAWSSignatureV4ForS3Get
       APIResponse=$(CallAPIS3Get)
