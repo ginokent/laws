@@ -227,20 +227,12 @@ SetAWSSignatureV4ForS3Get() {
 }
 
 CallAPIS3Get() {
-  if [ "${STSToken}" ]; then
-    curl -LsS "https://${APIEndpoint}${BucketPath}${CanonicalQueryString}" \
-      -H "Host: ${APIEndpoint}" \
-      -H "x-amz-content-sha256: ${HashedPayload}" \
-      -H "x-amz-date: ${DateISO8601}" \
-      -H "x-amz-security-token: ${STSToken}" \
-      -H "Authorization: ${Authorization}"
-  else
-    curl -LsS "https://${APIEndpoint}${BucketPath}${CanonicalQueryString}" \
-      -H "Host: ${APIEndpoint}" \
-      -H "x-amz-content-sha256: ${HashedPayload}" \
-      -H "x-amz-date: ${DateISO8601}" \
-      -H "Authorization: ${Authorization}"
-  fi
+  eval "curl -LsS https://${APIEndpoint}${BucketPath}${CanonicalQueryString} \
+    -H 'Host: ${APIEndpoint}' \
+    -H 'x-amz-content-sha256: ${HashedPayload}' \
+    -H 'x-amz-date: ${DateISO8601}' \
+    $(if [ "${STSToken}" ]; then printf "%s" "-H 'x-amz-security-token: ${STSToken}'"; fi) \
+    -H 'Authorization: ${Authorization}'"
 }
 
 List() {
