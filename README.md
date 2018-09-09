@@ -11,6 +11,11 @@ Like a **L**one **W**olf that does not depend on anyone... _(:3」∠)_
     curl -sS https://raw.githubusercontent.com/djeeno/lw/master/lw | sh /dev/stdin s3 ls
 
 
+## Install
+
+    sudo curl -sS https://raw.githubusercontent.com/djeeno/lw/master/lw -o /usr/local/bin/lw && sudo chmod +x $_
+
+
 ## Usage:
 
 When executing this script,
