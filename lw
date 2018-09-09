@@ -216,7 +216,7 @@ SetAWSSignatureV4ForS3Get() {
 
 CallAPIS3Get() {
   {
-    printf "%s" "curl -LsS 'https://${APIEndpoint}${BucketPath}$(if [ "${CanonicalQueryString}" ]; then echo "?${CanonicalQueryString}"; fi)'"
+    printf "%s" "curl -LsS 'https://${APIEndpoint}${BucketPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")'"
     printf "%s" " -H 'Host: ${APIEndpoint}'"
     printf "%s" " -H 'x-amz-content-sha256: ${HashedPayload}'"
     printf "%s" " -H 'x-amz-date: ${DateISO8601}'"
@@ -246,7 +246,7 @@ List() {
       BucketPath="/$(ExtractHost "$1")"
       if [ -z "${MaxKeys}" ] || echo "${MaxKeys}" | grep -q '[^0-9]'; then MaxKeys=1000; fi
       Prefix=$(UriEncode "$(ExtractPath "$1" | sed 's|^/||')")
-      CanonicalQueryString="$(if [ "${ContinuationToken}" ]; then printf "%s" "continuation-token=${ContinuationToken}&"; fi)list-type=2&max-keys=${MaxKeys}$(if [ "${Prefix}" ]; then printf "%s" "&prefix=${Prefix}"; fi)"
+      CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf "%s" "&prefix=${Prefix}")"
       Payload=""
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
