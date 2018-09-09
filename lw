@@ -80,45 +80,33 @@ CheckDependency() {
 }; CheckDependency
 
 Hex() {
-  printf "%s" "$1" \
-    | od -v -A n -t x1 \
-    | while read -r LINE; do printf "%s" "${LINE}"; done \
-    | sed 's/[^[:graph:]]//g'
+  printf "%s" "$1" | od -v -A n -t x1 | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/[^[:graph:]]//g'
 }
 
 HMAC() {
-  printf "%s" "$2" \
-    | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" \
-    | sed 's/^.* //'
+  printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
 }
 
 SHA256Hash() {
-  printf "%s" "$1" \
-    | openssl dgst -sha256 \
-    | sed 's/^.* //'
+  printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
 }
 
 SetIAMAndRegion() {
   # get credentials from environment variables
   if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
     if [ "${AWS_REGION}" ] && [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
-      Region=${AWS_REGION}
-      AccessKeyId=${AWS_ACCESS_KEY_ID}
-      SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
+      Region=${AWS_REGION} AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
     fi
   fi
   # get credentials from `~/.aws/config` and `~/.aws/credentials`
   if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
     if [ -r ~/.aws/credentials ]; then
       ini_region="" ini_aws_access_key_id="" ini_aws_secret_access_key=""
-      eval "$(
-        cat ~/.aws/config ~/.aws/credentials 2>/dev/null \
-          | sed "s/[[:space:]]*\=[[:space:]]*/=/g; s/[#;].*$//; s/[[:space:]]*$//; s/^[[:space:]]*//; s/^\(.*\)=\([^\"\']*\)$/ini_\1=\"\2\"/" \
-          | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/\[/ {/.*\=.*/p;}"
+      eval "$(cat ~/.aws/config ~/.aws/credentials 2>/dev/null \
+        | sed "s/[[:space:]]*\=[[:space:]]*/=/g; s/[#;].*$//; s/[[:space:]]*$//; s/^[[:space:]]*//; s/^\(.*\)=\([^\"\']*\)$/ini_\1=\"\2\"/" \
+        | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/\[/ {/.*\=.*/p;}"
       )"
-      Region="${ini_region}"
-      AccessKeyId="${ini_aws_access_key_id}"
-      SecretAccessKey="${ini_aws_secret_access_key}"
+      Region="${ini_region}" AccessKeyId="${ini_aws_access_key_id}" SecretAccessKey="${ini_aws_secret_access_key}"
       if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
         echo "[WARN]  Failed to parse ~/.aws/credentials or ~/.aws/config" >/dev/stderr
       fi
@@ -243,9 +231,7 @@ List() {
     "")
       # If there is no argument, list the buckets.
       SetIAMAndRegion
-      BucketPath="/"
-      CanonicalQueryString=""
-      Payload=""
+      BucketPath="/" CanonicalQueryString="" Payload=""
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>"; then
@@ -260,11 +246,7 @@ List() {
       BucketPath="/$(ExtractHost "$1")"
       if [ -z "${MaxKeys}" ] || echo "${MaxKeys}" | grep -q '[^0-9]'; then MaxKeys=1000; fi
       Prefix=$(UriEncode "$(ExtractPath "$1" | sed 's|^/||')")
-      CanonicalQueryString="$(
-        if [ "${ContinuationToken}" ]; then printf "%s" "continuation-token=${ContinuationToken}&"; fi
-      )list-type=2&max-keys=${MaxKeys}$(
-        if [ "${Prefix}" ]; then printf "%s" "&prefix=${Prefix}"; fi
-      )"
+      CanonicalQueryString="$(if [ "${ContinuationToken}" ]; then printf "%s" "continuation-token=${ContinuationToken}&"; fi)list-type=2&max-keys=${MaxKeys}$(if [ "${Prefix}" ]; then printf "%s" "&prefix=${Prefix}"; fi)"
       Payload=""
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
@@ -285,8 +267,7 @@ Get() {
   [ "$#" = 0 ] && Help && exit 1
   SetIAMAndRegion
   BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
-  CanonicalQueryString=""
-  Payload=""
+  CanonicalQueryString="" Payload=""
   SetAWSSignatureV4ForS3Get
   CallAPIS3Get
 }
@@ -295,15 +276,9 @@ S3() {
   [ "$#" = 0 ] && Help && exit 1
   # check sub commands
   case $1 in
-    list|ls)
-      shift && List "$@"
-      ;;
-    get|cat)
-      shift && Get "$@"
-      ;;
-    *)
-      Help && exit 1
-      ;;
+    list|ls) shift && List "$@" ;;
+    get|cat) shift && Get "$@" ;;
+          *) Help && exit 1 ;;
   esac
 }
 
@@ -311,12 +286,8 @@ main() {
   [ "$#" = 0 ] && Help && exit 1
   # check sub commands
   case $1 in
-    s3)
-      shift && S3 "$@"
-      ;;
-    *)
-      Help && exit 1
-      ;;
+    s3) shift && S3 "$@" ;;
+    * ) Help && exit 1 ;;
   esac
 }
 
