@@ -73,9 +73,7 @@ HELP
 
 CheckDependency() {
   for cmd in '[' cat curl date grep od openssl printf sed tr; do
-    if ! command -v "${cmd}" >/dev/null; then
-      echo "[ERROR] CheckDependency: ${cmd} not found in PATH=${PATH}" && exit 1
-    fi
+    command -v "${cmd}" >/dev/null || { echo "[ERROR] CheckDependency: ${cmd} not found in PATH=${PATH}" && exit 1; }
   done
 }; CheckDependency
 
@@ -122,8 +120,7 @@ SetIAMAndRegion() {
     STSToken=$(echo "${IAMJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
 
     # if STSToken is null, regarding as not running on EC2.
-    if [ -z "${STSToken}" ]; then
-      cat <<"ERROR" | sed 's/^/[ERROR] /' >/dev/stderr && exit 1
+    [ "${STSToken}" ] || { cat <<"ERROR" | sed 's/^/[ERROR] /' >/dev/stderr && exit 1
 
 SetIAMAndRegion: Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
@@ -148,7 +145,7 @@ Follow the steps below to register your credentials:
     $ export AWS_SECRET_ACCESS_KEY=****************************************
 
 ERROR
-    fi
+    }
   fi
 }
 
@@ -176,7 +173,7 @@ CanonicalHeader() {
   printf "%s\n" "host:${APIEndpoint}"
   printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
   printf "%s\n" "x-amz-date:${DateISO8601}"
-  if [ "${STSToken}" ]; then printf "%s\n" "x-amz-security-token:${STSToken}"; fi
+  [ -z "${STSToken}" ] || printf "%s\n" "x-amz-security-token:${STSToken}"
 }
 
 CanonicalRequest() {
@@ -220,7 +217,7 @@ CallAPIS3Get() {
     printf "%s" " -H 'Host: ${APIEndpoint}'"
     printf "%s" " -H 'x-amz-content-sha256: ${HashedPayload}'"
     printf "%s" " -H 'x-amz-date: ${DateISO8601}'"
-    if [ "${STSToken}" ]; then printf "%s" " -H 'x-amz-security-token: ${STSToken}'"; fi
+    [ -z "${STSToken}" ] || printf "%s" " -H 'x-amz-security-token: ${STSToken}'"
     printf "%s" " -H 'Authorization: ${Authorization}'"
   } | sh
 }
@@ -287,7 +284,7 @@ main() {
   # check sub commands
   case $1 in
     s3) shift && S3 "$@" ;;
-    * ) Help && exit 1 ;;
+     *) Help && exit 1 ;;
   esac
 }
 
