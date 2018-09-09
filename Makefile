@@ -5,16 +5,17 @@ SHELL = /bin/bash
 all: test shellcheck readme
 
 test:
-	@#echo .tools/test.sh
-	@#@.tools/test.sh 2>/dev/stdout | sed "s/\(^+* .*\)/`printf '\e[34m'`\1`printf '\e[0m'`/g; s/\(^'$$\)/`printf '\e[34m'`\1`printf '\e[0m'`/g"
-	.tools/test.sh
+	@echo [TEST] .tools/test.sh
+	@.tools/test.sh
 	@echo
 
 shellcheck:
-	shellcheck ./lw
+	@echo [TEST] shellcheck ./lw
+	@shellcheck ./lw && { printf "\n\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- Passed test ----------------"; } || { printf "\n\e[31m%s\e[0m\n" "`LANG=C date` [ERROR] -- Failed test ----------------"; false; }
 	@echo
 
 readme:
+	@echo [TEST] git diff ./README.md
 	@./lw 2>&1 | tee ./README.md >/dev/null
-	git diff ./README.md
+	@git diff ./README.md && { printf "\n\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- Passed test ----------------"; } || { printf "\n\e[31m%s\e[0m\n" "`LANG=C date` [ERROR] -- Failed test ----------------"; false; }
 	@echo
