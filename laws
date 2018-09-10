@@ -196,7 +196,7 @@ CanonicalRequest() {
 SetAWSSignatureV4ForS3Get() {
   # AWS Signature Version 4 for Amazon S3 REST API
   HTTPMethod="GET"
-  APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
+  [ "${APIEndpoint}" ] || APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
   DateYMD=$(date +'%Y%m%d')
   DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
   HashedPayload=$(SHA256Hash "${Payload}")
@@ -220,7 +220,7 @@ SetAWSSignatureV4ForS3Get() {
 
 CallAPIS3Get() {
   {
-    printf "%s" "curl -LsS 'https://${APIEndpoint}${BucketPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")'"
+    printf "%s" "curl -kLsS 'https://${APIEndpoint}${BucketPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")'"
     printf "%s" " -H 'Host: ${APIEndpoint}'"
     printf "%s" " -H 'x-amz-content-sha256: ${HashedPayload}'"
     printf "%s" " -H 'x-amz-date: ${DateISO8601}'"
@@ -238,7 +238,7 @@ List() {
       BucketPath="/" CanonicalQueryString="" Payload=""
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
-      if echo "${Response}" | grep -q "<Error>"; then
+      if echo "${Response}" | grep -q "</Error>"; then
         echo "${Response}" >/dev/stderr && exit 1
       else
         echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
@@ -254,7 +254,11 @@ List() {
       Payload=""
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
-      if echo "${Response}" | grep -q "<Error>"; then
+      if echo "${Response}" | grep -q "</Error>"; then
+        if echo "${Response}" | grep -q "<Code>PermanentRedirect</Code>"; then
+          APIEndpoint=$(echo "${Response}" | grep -Eo "<Endpoint>[^<]*" | sed 's|<Endpoint>||')
+          List "$@"
+        fi
         echo "${Response}" >/dev/stderr && exit 1
       else
         echo "${Response}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
