@@ -1,6 +1,6 @@
 
 laws
-===
+====
 
 Lightweight shell script for Amazon Web Service like AWS CLI.
 
@@ -11,7 +11,7 @@ Lightweight shell script for Amazon Web Service like AWS CLI.
     curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 get s3://your-bucket/path/to/file
 
 
-## Install
+## Install:
 
     sudo curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws -o /usr/local/bin/laws && sudo chmod +x $_
 
