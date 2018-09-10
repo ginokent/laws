@@ -5,17 +5,17 @@ SHELL = /bin/bash
 all: test shellcheck readme
 
 test:
-	@echo [TEST] .tools/test.sh
-	@.tools/test.sh
-	@echo
+	@./test/test.sh
 
 shellcheck:
-	@echo [TEST] shellcheck ./lw
-	@shellcheck ./lw && { printf "\n\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- Passed test ----------------"; } || { printf "\n\e[31m%s\e[0m\n" "`LANG=C date` [ERROR] -- Failed test ----------------"; false; }
-	@echo
+	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- shellcheck ./lw Testing... ----------------"
+	@shellcheck ./lw \
+		&& { printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- shellcheck ./lw Passed ----------------"; } \
+		|| { printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == shellcheck ./lw Failed ================"; false; }
 
 readme:
-	@echo [TEST] git diff ./README.md
+	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- git diff ./README.md Testing... ----------------"
 	@./lw 2>&1 | tee ./README.md >/dev/null
-	@git diff ./README.md && { printf "\n\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- Passed test ----------------"; } || { printf "\n\e[31m%s\e[0m\n" "`LANG=C date` [ERROR] -- Failed test ----------------"; false; }
-	@echo
+	@git diff ./README.md \
+		&& { printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- git diff ./README.md Passed ----------------"; } \
+		|| { printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == git diff ./README.md Failed ================"; false; }
