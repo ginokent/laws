@@ -78,7 +78,7 @@ HELP
 
 CheckDependency() {
   for cmd in '[' cat curl date grep od openssl printf sed tr; do
-    command -v "${cmd}" >/dev/null || { echo "[ERROR] CheckDependency: ${cmd} not found in PATH=${PATH}" && exit 1; }
+    command -v "${cmd}" >/dev/null || { echo "[ERROR] CheckDependency: ${cmd} not found in PATH=${PATH}" >/dev/stderr && exit 1; }
   done
 }; CheckDependency
 
@@ -95,7 +95,7 @@ SetIAMAndRegion() {
       ini_region="" ini_aws_access_key_id="" ini_aws_secret_access_key=""
       eval "$(cat ~/.aws/config ~/.aws/credentials 2>/dev/null \
         | sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/ini_\1=\"\2\"/" \
-        | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/\[/ {/.*\=.*/p;}"
+        | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/\[/{/.*\=.*/p;}"
       )"
       Region="${ini_region}" AccessKeyId="${ini_aws_access_key_id}" SecretAccessKey="${ini_aws_secret_access_key}"
       if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
@@ -237,7 +237,7 @@ List() {
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>"; then
-        echo "${Response}" && exit 1
+        echo "${Response}" >/dev/stderr && exit 1
       else
         echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
       fi
@@ -253,7 +253,7 @@ List() {
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>"; then
-        echo "${Response}" && exit 1
+        echo "${Response}" >/dev/stderr && exit 1
       else
         echo "${Response}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
         if echo "${Response}" | grep -Eq "<NextContinuationToken>[^<]*"; then
