@@ -78,21 +78,9 @@ HELP
 
 CheckDependency() {
   for cmd in '[' cat curl date grep od openssl printf sed tr; do
-    command -v "${cmd}" >/dev/null || { echo "[ERROR] CheckDependency: ${cmd} not found in PATH=${PATH}" && exit 1; }
+    command -v "${cmd}" >/dev/null || { echo "[ERROR] CheckDependency: ${cmd} not found in PATH=${PATH}" >/dev/stderr && exit 1; }
   done
 }; CheckDependency
-
-Hex() {
-  printf "%s" "$1" | od -v -A n -t x1 | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/[^[:graph:]]//g'
-}
-
-HMAC() {
-  printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
-}
-
-SHA256Hash() {
-  printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
-}
 
 SetIAMAndRegion() {
   # get credentials from environment variables
@@ -106,8 +94,8 @@ SetIAMAndRegion() {
     if [ -r ~/.aws/credentials ]; then
       ini_region="" ini_aws_access_key_id="" ini_aws_secret_access_key=""
       eval "$(cat ~/.aws/config ~/.aws/credentials 2>/dev/null \
-        | sed "s/[[:space:]]*\=[[:space:]]*/=/g; s/[#;].*$//; s/[[:space:]]*$//; s/^[[:space:]]*//; s/^\(.*\)=\([^\"\']*\)$/ini_\1=\"\2\"/" \
-        | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/\[/ {/.*\=.*/p;}"
+        | sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/ini_\1=\"\2\"/" \
+        | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/\[/{/.*\=.*/p;}"
       )"
       Region="${ini_region}" AccessKeyId="${ini_aws_access_key_id}" SecretAccessKey="${ini_aws_secret_access_key}"
       if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
@@ -154,6 +142,18 @@ ERROR
   fi
 }
 
+Hex() {
+  printf "%s" "$1" | od -v -A n -t x1 | tr -d '[:blank:]|\n'
+}
+
+HMAC() {
+  printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
+}
+
+SHA256Hash() {
+  printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
+}
+
 TrimSchemeAndSlashSlash() {
   printf "%s" "$1" | sed 's|^[^:]*://||'
 }
@@ -187,7 +187,7 @@ CanonicalRequest() {
   printf "%s\n" "${CanonicalQueryString}" # list-type=2&prefix=%2Fpath%2Fto%2Ffile
   printf "%s\n" "$(CanonicalHeader)"
   printf "%s\n" "" # blank lines are required
-  printf "%s\n" "$(CanonicalHeader | sed 's/:.*/;/g' | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/;$//')"
+  printf "%s\n" "$(CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
   printf "%s\n" "${HashedPayload}"
 }
 
@@ -211,7 +211,7 @@ SetAWSSignatureV4ForS3Get() {
   Authorization=$(
     printf "%s" "AWS4-HMAC-SHA256"
     printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
-    printf "%s" " SignedHeaders=$(CanonicalHeader | sed 's/:.*/;/g' | while read -r LINE; do printf "%s" "${LINE}"; done | sed 's/;$//'),"
+    printf "%s" " SignedHeaders=$(CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
     printf "%s" " Signature=${Signature}"
   )
 }
@@ -237,7 +237,7 @@ List() {
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>"; then
-        echo "${Response}" && exit 1
+        echo "${Response}" >/dev/stderr && exit 1
       else
         echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
       fi
@@ -253,7 +253,7 @@ List() {
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
       if echo "${Response}" | grep -q "<Error>"; then
-        echo "${Response}" && exit 1
+        echo "${Response}" >/dev/stderr && exit 1
       else
         echo "${Response}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
         if echo "${Response}" | grep -Eq "<NextContinuationToken>[^<]*"; then
