@@ -277,7 +277,16 @@ Get() {
   BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
   CanonicalQueryString="" Payload=""
   SetAWSSignatureV4ForS3Get
-  CallAPIS3Get
+  Response=$(CallAPIS3Get)
+  if echo "${Response}" | grep -q "</Error>"; then
+    if echo "${Response}" | grep -q "<Code>PermanentRedirect</Code>"; then
+      APIEndpoint=$(echo "${Response}" | grep -Eo "<Endpoint>[^<]*" | sed 's|<Endpoint>||')
+      Get "$@"
+    fi
+    echo "${Response}" >/dev/stderr && exit 1
+  else
+    echo "${Response}"
+  fi
 }
 
 S3() {
