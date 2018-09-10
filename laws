@@ -8,21 +8,21 @@ set -e
 Help() {
 cat <<"HELP" >/dev/stderr
 
-lw
+laws
 ===
 
-Simple shell script for Amazon S3 with very little dependency.  
-Like a **L**one **W**olf that does not depend on anyone... _(:3」∠)_  
+Lightweight shell script for Amazon Web Service like AWS CLI.
 
 
 ## TL;DR
 
-    curl -sS https://raw.githubusercontent.com/djeeno/lw/master/lw | sh /dev/stdin s3 ls
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 ls
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 get s3://your-bucket/path/to/file
 
 
 ## Install
 
-    sudo curl -sS https://raw.githubusercontent.com/djeeno/lw/master/lw -o /usr/local/bin/lw && sudo chmod +x $_
+    sudo curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws -o /usr/local/bin/laws && sudo chmod +x $_
 
 
 ## Usage:
@@ -42,21 +42,21 @@ When executing this script,
 #### `help`
 Display help.  
 
-    $ lw help
+    $ laws help
 
 
 #### `s3 list`
 List the contents on Amazon S3.  
 
-    $ lw s3 list [<your-bucket>[<prefix>]]
-    $ lw s3 ls [<your-bucket>[<prefix>]]
+    $ laws s3 list [<your-bucket>[<prefix>]]
+    $ laws s3 ls [<your-bucket>[<prefix>]]
 
 
 #### `s3 get`
 Get the contents of the file on Amazon S3.  
 
-    $ lw s3 get s3://your-bucket/path/to/file
-    $ lw s3 cat s3://your-bucket/path/to/file
+    $ laws s3 get s3://your-bucket/path/to/file
+    $ laws s3 cat s3://your-bucket/path/to/file
 
 
 ## Note:
@@ -98,6 +98,7 @@ SetIAMAndRegion() {
         | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/\[/{/.*\=.*/p;}"
       )"
       Region="${ini_region}" AccessKeyId="${ini_aws_access_key_id}" SecretAccessKey="${ini_aws_secret_access_key}"
+      [ -z "${AWS_REGION}" ] || Region=${AWS_REGION}
       if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
         echo "[WARN]  Failed to parse ~/.aws/credentials or ~/.aws/config" >/dev/stderr
       fi
@@ -106,6 +107,7 @@ SetIAMAndRegion() {
   # get credentials from Instance Profile
   if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
     Region=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' || true)
+    [ -z "${AWS_REGION}" ] || Region=${AWS_REGION}
     InstanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || true)
     IAMJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${InstanceProfile}" 2>/dev/null || true)
     AccessKeyId=$(echo "${IAMJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
