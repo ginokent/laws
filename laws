@@ -11,7 +11,7 @@ cat <<"README" >/dev/stderr
 laws
 ====
 
-Lightweight shell script for Amazon Web Service like AWS CLI.
+Lightweight shell script for Amazon Web Service Command Line Interface like AWS CLI.
 
 
 ## TL;DR
@@ -76,25 +76,31 @@ This program relies heavily on "AWS Signature Version 4".
 README
 }
 
+True=0
+False=1
+
 Contain() (
-  Text="${1:?"[FATAL] Contain() requires \"Text\" as $1"}"
-  Pattern="${2:?"[FATAL] Contain() requires \"Pattern\" as $2"}"
-  if echo "${Text}" | grep -Eq "${Pattern}"; then
-    return 0
+  text="${1:?"[FATAL] Contain(): requires \"text\" as $1"}"
+  pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as $2"}"
+  if echo "${text}" | grep -Eq "${pattern}"; then
+    return $True
   else
-    return 1
+    return $False
   fi
 )
 
-CheckDependency() {
-  for cmd in '[' cat curl date grep od openssl printf sed tr; do
-    command -v "${cmd}" >/dev/null || { echo "[ERROR] CheckDependency: ${cmd} not found in PATH=${PATH}" >/dev/stderr && exit 1; }
+CheckDependency() (
+  for cmd in "$@"; do
+    if ! command -v "${cmd}"; then
+      echo "[ERROR] CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\"" >/dev/stderr
+      exit $False
+    fi
   done
-}; CheckDependency
+); CheckDependency '[' cat curl date grep od openssl printf sed tr
 
 SetIAMAndRegion() {
   # get credentials from environment variables
-  if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
+  if [ "${Region}" ] && [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]; then
     if [ "${AWS_REGION}" ] && [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
       Region=${AWS_REGION} AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
     fi

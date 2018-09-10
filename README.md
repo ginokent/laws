@@ -2,7 +2,7 @@
 laws
 ====
 
-Lightweight shell script for Amazon Web Service like AWS CLI.
+Lightweight shell script for Amazon Web Service Command Line Interface like AWS CLI.
 
 
 ## TL;DR
