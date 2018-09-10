@@ -98,25 +98,29 @@ CheckDependency() (
   done
 ); CheckDependency '[' cat curl date grep od openssl printf sed tr
 
+ParseINIFromStdinToStdout() (
+  iniSectionPattern="${1:?"[FATAL] ParseINIFromStdinToStdout(): requires \"iniSectionPattern\" as $1"}"
+  sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/" /dev/stdin \
+    | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
+)
+
 SetIAMAndRegion() {
   # get credentials from environment variables
   if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-    if [ "${AWS_REGION}" ] && [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
-      Region=${AWS_REGION} AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
+    [ "${Region}" ] || Region=${AWS_REGION}
+    if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
+      AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
     fi
   fi
   # get credentials from `~/.aws/config` and `~/.aws/credentials`
   if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-    if [ -r ~/.aws/credentials ]; then
-      ini_region="" ini_aws_access_key_id="" ini_aws_secret_access_key=""
-      eval "$(cat ~/.aws/config ~/.aws/credentials 2>/dev/null \
-        | sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/ini_\1=\"\2\"/" \
-        | sed -n "/^\[\(profile \)*${AWS_PROFILE:=default}\]/,/\[/{/.*\=.*/p;}"
-      )"
-      Region="${ini_region}" AccessKeyId="${ini_aws_access_key_id}" SecretAccessKey="${ini_aws_secret_access_key}"
+    if [ -r ~/.aws/config ] && [ -r ~/.aws/credentials ]; then
+      INI_region="" INI_aws_access_key_id="" INI_aws_secret_access_key=""
+      eval "$(cat ~/.aws/config ~/.aws/credentials | ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:=default}")"
+      Region="${INI_region}" AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
       [ -z "${AWS_REGION}" ] || Region=${AWS_REGION}
       if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-        echo "[WARN]  Failed to parse ~/.aws/credentials or ~/.aws/config" >/dev/stderr
+        echo "[WARN]  Failed to parse ~/.aws/config or ~/.aws/credentials" >/dev/stderr
       fi
     fi
   fi
