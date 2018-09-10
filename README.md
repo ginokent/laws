@@ -1,19 +1,19 @@
 
-lw
+laws
 ===
 
-Simple shell script for Amazon S3 with very little dependency.  
-Like a **L**one **W**olf that does not depend on anyone... _(:3」∠)_  
+Lightweight shell script for Amazon Web Service like AWS CLI.
 
 
 ## TL;DR
 
-    curl -sS https://raw.githubusercontent.com/djeeno/lw/master/lw | sh /dev/stdin s3 ls
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 ls
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 get s3://your-bucket/path/to/file
 
 
 ## Install
 
-    sudo curl -sS https://raw.githubusercontent.com/djeeno/lw/master/lw -o /usr/local/bin/lw && sudo chmod +x $_
+    sudo curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws -o /usr/local/bin/laws && sudo chmod +x $_
 
 
 ## Usage:
@@ -33,21 +33,21 @@ When executing this script,
 #### `help`
 Display help.  
 
-    $ lw help
+    $ laws help
 
 
 #### `s3 list`
 List the contents on Amazon S3.  
 
-    $ lw s3 list [<your-bucket>[<prefix>]]
-    $ lw s3 ls [<your-bucket>[<prefix>]]
+    $ laws s3 list [<your-bucket>[<prefix>]]
+    $ laws s3 ls [<your-bucket>[<prefix>]]
 
 
 #### `s3 get`
 Get the contents of the file on Amazon S3.  
 
-    $ lw s3 get s3://your-bucket/path/to/file
-    $ lw s3 cat s3://your-bucket/path/to/file
+    $ laws s3 get s3://your-bucket/path/to/file
+    $ laws s3 cat s3://your-bucket/path/to/file
 
 
 ## Note:
