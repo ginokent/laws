@@ -91,7 +91,7 @@ Contain() (
 
 CheckDependency() (
   for cmd in "$@"; do
-    if ! command -v "${cmd}"; then
+    if ! command -v "${cmd}" >/dev/null; then
       echo "[ERROR] CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\"" >/dev/stderr
       exit $False
     fi
@@ -100,7 +100,7 @@ CheckDependency() (
 
 SetIAMAndRegion() {
   # get credentials from environment variables
-  if [ "${Region}" ] && [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]; then
+  if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
     if [ "${AWS_REGION}" ] && [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
       Region=${AWS_REGION} AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
     fi
