@@ -1,17 +1,17 @@
 SHELL = /bin/bash
 
-.PHONY: all shellcheck test
-
-all: test shellcheck readme
-
-test:
-	@./test/test.sh
+.PHONY: readme shellcheck test
 
 shellcheck:
 	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- shellcheck ./laws Testing... ----------------"
 	@shellcheck ./laws \
 		&& { printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- shellcheck ./laws Passed ----------------"; } \
 		|| { printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == shellcheck ./laws Failed ================"; false; }
+
+test: test.sh shellcheck readme
+
+test.sh:
+	@./test/test.sh
 
 readme:
 	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- git diff ./README.md Testing... ----------------"
