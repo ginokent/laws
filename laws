@@ -80,17 +80,19 @@ True=0
 False=1
 
 LogWarn() (
-  printf "%s" "${1:?"[FATAL] LogWarn(): requires \"text\" as \$1"}"  | sed "s/^/[WARN]  /" >/dev/stderr
+  contents=${1:?"[FATAL] LogWarn(): requires \"contents\" as \$1"}
+  printf "%s" "${contents}"  | sed "s/^/[WARN]  /" >/dev/stderr
 )
 
 LogError() (
-  printf "%s" "${1:?"[FATAL] LogError(): requires \"text\" as \$1"}" | sed "s/^/[ERROR] /" >/dev/stderr
+  contents=${1:?"[FATAL] LogError(): requires \"contents\" as \$1"}
+  printf "%s" "${contents}" | sed "s/^/[ERROR] /" >/dev/stderr
 )
 
 Contain() (
-  text="${1:?"[FATAL] Contain(): requires \"text\" as \$1"}"
+  contents="${1:?"[FATAL] Contain(): requires \"contents\" as \$1"}"
   pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as \$2"}"
-  if echo "${text}" | grep -Eq "${pattern}"; then
+  if echo "${contents}" | grep -Eq "${pattern}"; then
     return $True
   else
     return $False
@@ -228,11 +230,17 @@ TrimSchemeAndSlashSlash() {
   printf "%s" "$1" | sed 's|^[^:]*://||'
 }
 
-ExtractPattern() {
-  text=${1:?"[FATAL] ExtractPattern(): requires \"text\" as \$1"}
+ExtractPattern() (
+  contents=${1:?"[FATAL] ExtractPattern(): requires \"contents\" as \$1"}
   pattern=${2:?"[FATAL] ExtractPattern(): requires \"pattern\" as \$2"}
-  echo "${text}" | grep -Eo "${pattern}"
-}
+  echo "${contents}" | grep -Eo "${pattern}"
+)
+
+ExtractXMLValue() (
+  contents=${1:?"[FATAL] ExtractPattern(): requires \"contents\" as \$1"}
+  tagName=${2:?"[FATAL] ExtractXMLValue(): requires \"tagName\" as \$2"}
+  echo "${contents}" | grep -Eo "<${tagName}>.*</${tagName}>" | sed "s|</*${tagName}>||g"
+)
 
 ExtractHost() {
   TrimSchemeAndSlashSlash "$1" | sed 's|/.*||'
@@ -332,7 +340,7 @@ List() {
       # check error
       if Contain "${Response}" "</Error>"; then
         if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
-          APIEndpoint=$(ExtractPattern "${Response}" "<Endpoint>[^<]*" | sed 's|<Endpoint>||')
+          APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
           List "$@"
         fi
         echo "${Response}" >/dev/stderr && exit 1
@@ -357,7 +365,7 @@ Get() {
   Response=$(CallAPIS3Get)
   if Contain "${Response}" "</Error>"; then
     if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
-      APIEndpoint=$(echo "${Response}" | grep -Eo "<Endpoint>[^<]*" | sed 's|<Endpoint>||')
+      APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
       Get "$@"
     fi
     echo "${Response}" >/dev/stderr
