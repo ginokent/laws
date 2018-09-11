@@ -228,6 +228,12 @@ TrimSchemeAndSlashSlash() {
   printf "%s" "$1" | sed 's|^[^:]*://||'
 }
 
+ExtractPattern() {
+  text=${1:?"[FATAL] ExtractPattern(): requires \"text\" as \$1"}
+  pattern=${2:?"[FATAL] ExtractPattern(): requires \"pattern\" as \$2"}
+  echo "${text}" | grep -Eo "${pattern}"
+}
+
 ExtractHost() {
   TrimSchemeAndSlashSlash "$1" | sed 's|/.*||'
 }
@@ -309,9 +315,8 @@ List() {
       Response=$(CallAPIS3Get)
       if Contain "${Response}" "</Error>"; then
         echo "${Response}" >/dev/stderr && exit 1
-      else
-        echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
       fi
+      echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
       ;;
     *)
       SetRegion
@@ -324,18 +329,19 @@ List() {
       Payload=""
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
+      # check error
       if Contain "${Response}" "</Error>"; then
         if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
-          APIEndpoint=$(echo "${Response}" | grep -Eo "<Endpoint>[^<]*" | sed 's|<Endpoint>||')
+          APIEndpoint=$(ExtractPattern "${Response}" "<Endpoint>[^<]*" | sed 's|<Endpoint>||')
           List "$@"
         fi
         echo "${Response}" >/dev/stderr && exit 1
-      else
-        echo "${Response}" | grep -Eo "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g;'
-        if Contain "${Response}" "<NextContinuationToken>[^<]*"; then
-          ContinuationToken=$(UriEncode "$(echo "${Response}" | grep -Eo "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
-          List "$@"
-        fi
+      fi
+      # normal
+      ExtractPattern "${Response}" "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g'
+      if Contain "${Response}" "<NextContinuationToken>[^<]*"; then
+        ContinuationToken=$(UriEncode "$(ExtractPattern "${Response}" "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
+        List "$@"
       fi
       ;;
   esac
@@ -354,10 +360,10 @@ Get() {
       APIEndpoint=$(echo "${Response}" | grep -Eo "<Endpoint>[^<]*" | sed 's|<Endpoint>||')
       Get "$@"
     fi
-    echo "${Response}" >/dev/stderr && exit 1
-  else
-    echo "${Response}"
+    echo "${Response}" >/dev/stderr
+    exit 1
   fi
+  echo "${Response}"
 }
 
 S3() {
