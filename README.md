@@ -8,7 +8,7 @@ Lightweight shell script for Amazon Web Service Command Line Interface like AWS 
 ## TL;DR
 
     curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 ls
-    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 get s3://your-bucket/path/to/file
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 get s3://your-bucket/path/to/file > /path/to/file
 
 
 ## Install:
