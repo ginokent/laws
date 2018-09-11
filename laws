@@ -364,7 +364,9 @@ Get() {
   BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
   CanonicalQueryString="" Payload=""
   SetAWSSignatureV4ForS3Get
-  Response=$(CallAPIS3Get)
+  TmpFile=$(mktemp)
+  CallAPIS3Get > "${TmpFile}"
+  Response="$(cat "${TmpFile}")"
   if Contain "${Response}" "</Error>"; then
     if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
       APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
@@ -373,7 +375,23 @@ Get() {
     echo "${Response}" >/dev/stderr
     exit 1
   fi
-  echo "${Response}"
+  cat "${TmpFile}"
+}
+
+Copy() {
+  if [ "$#" -le 1 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+
+  if [ -r "$1" ] && [ ! -x "$2" ]; then
+    LogError "Copy(): cp ( src=S3 dest=local ) is unimplemented"
+    exit 1
+  fi
+
+  if [ ! -x "$1" ]; then
+    if [ -d "$(dirname $2)" ]; then
+      Get "$1" > "$2"
+      exit 0
+    fi
+  fi
 }
 
 S3() {
@@ -382,7 +400,8 @@ S3() {
   case "$1" in
     list|ls) shift && List "$@" ;;
     get|cat) shift && Get "$@" ;;
-          *) ReadMe && exit 1 ;;
+    copy|cp) shift && Copy "$@" ;;
+          *) ReadMe; exit 1 ;;
   esac
 }
 
@@ -391,7 +410,7 @@ main() {
   # check sub commands
   case "$1" in
     s3) shift && S3 "$@" ;;
-     *) ReadMe && exit 1 ;;
+     *) ReadMe; exit 1 ;;
   esac
 }
 
