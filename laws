@@ -80,11 +80,11 @@ True=0
 False=1
 
 LogWarn() (
-  printf "%s\n" "${1:?"[FATAL] LogWarn(): requires \"text\" as \$1"}"  | sed "s/^/[WARN]  /" >/dev/stderr
+  printf "%s" "${1:?"[FATAL] LogWarn(): requires \"text\" as \$1"}"  | sed "s/^/[WARN]  /" >/dev/stderr
 )
 
 LogError() (
-  printf "%s\n" "${1:?"[FATAL] LogError(): requires \"text\" as \$1"}" | sed "s/^/[ERROR] /" >/dev/stderr
+  printf "%s" "${1:?"[FATAL] LogError(): requires \"text\" as \$1"}" | sed "s/^/[ERROR] /" >/dev/stderr
 )
 
 Contain() (
@@ -121,7 +121,11 @@ SetRegion() {
   if [ -z "${Region}" ] && [ -r ~/.aws/config ]; then
     INI_region=""
     eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/config)"
-    if [ "${INI_region}" ]; then Region=${INI_region}; fi
+    if [ "${INI_region}" ]; then
+      Region=${INI_region}
+    else
+      LogWarn "SetRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
+    fi
   fi
 
   # 3. meta-data
@@ -145,10 +149,10 @@ Follow the steps below to register AWS region:
 1. Set environment variables:
 
     $ export AWS_REGION=ap-northeast-1
-
+ 
 ERROR
-    LogError "${ErrorMessage}"
     )
+    LogError "${ErrorMessage}"
     exit 1
   fi
 
@@ -168,7 +172,7 @@ SetAccessKey() {
       eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/credentials)"
       AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
       if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-        LogWarn "SetAccessKey(): Failed to parse ~/.aws/credentials"
+        LogWarn "SetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
       fi
     fi
   fi
@@ -199,7 +203,7 @@ Follow the steps below to register your credentials:
 
     $ export AWS_ACCESS_KEY_ID=AKIA****************
     $ export AWS_SECRET_ACCESS_KEY=****************************************
-
+ 
 ERROR
     )
     LogError "${ErrorMessage}"
