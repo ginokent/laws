@@ -329,11 +329,14 @@ List() {
       SetRegion
       # If there is an argument, list the objects.
       SetAccessKey
-      BucketPath="/$(ExtractHost "$1")"
+      BucketPath="/$(ExtractHost "$1")" Payload=""
       if [ -z "${MaxKeys}" ] || Contain "${MaxKeys}" "[^0-9]"; then MaxKeys=1000; fi
       Prefix=$(UriEncode "$(ExtractPath "$1")")
-      CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf "%s" "&prefix=${Prefix}")"
-      Payload=""
+      CanonicalQueryString="$(
+        [ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&"
+      )list-type=2&max-keys=${MaxKeys}$(
+        [ -z "${Prefix}" ] || printf "%s" "&prefix=${Prefix}"
+      )"
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
       # check error
