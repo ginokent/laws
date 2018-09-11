@@ -79,9 +79,17 @@ README
 True=0
 False=1
 
+LogWarn() (
+  printf "%s\n" "${1:?"[FATAL] LogWarn(): requires \"text\" as \$1"}"  | sed "s/^/[WARN]  /" >/dev/stderr
+)
+
+LogError() (
+  printf "%s\n" "${1:?"[FATAL] LogError(): requires \"text\" as \$1"}" | sed "s/^/[ERROR] /" >/dev/stderr
+)
+
 Contain() (
-  text="${1:?"[FATAL] Contain(): requires \"text\" as $1"}"
-  pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as $2"}"
+  text="${1:?"[FATAL] Contain(): requires \"text\" as \$1"}"
+  pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as \$2"}"
   if echo "${text}" | grep -Eq "${pattern}"; then
     return $True
   else
@@ -92,60 +100,94 @@ Contain() (
 CheckDependency() (
   for cmd in "$@"; do
     if ! command -v "${cmd}" >/dev/null; then
-      echo "[ERROR] CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\"" >/dev/stderr
+      LogError "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
       exit $False
     fi
   done
 ); CheckDependency '[' cat curl date grep od openssl printf sed tr
 
 ParseINIFromStdinToStdout() (
-  iniSectionPattern="${1:?"[FATAL] ParseINIFromStdinToStdout(): requires \"iniSectionPattern\" as $1"}"
+  iniSectionPattern="${1:?"[FATAL] ParseINIFromStdinToStdout(): requires \"iniSectionPattern\" as \$1"}"
   sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/" /dev/stdin \
     | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
 )
 
-SetIAMAndRegion() {
-  # get credentials from environment variables
-  if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-    [ "${Region}" ] || Region=${AWS_REGION}
-    if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
-      AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
-    fi
-  fi
-  # get credentials from `~/.aws/config` and `~/.aws/credentials`
-  if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-    if [ -r ~/.aws/config ] && [ -r ~/.aws/credentials ]; then
-      INI_region="" INI_aws_access_key_id="" INI_aws_secret_access_key=""
-      eval "$(cat ~/.aws/config ~/.aws/credentials | ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:=default}")"
-      Region="${INI_region}" AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
-      [ -z "${AWS_REGION}" ] || Region=${AWS_REGION}
-      if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-        echo "[WARN]  Failed to parse ~/.aws/config or ~/.aws/credentials" >/dev/stderr
-      fi
-    fi
-  fi
-  # get credentials from Instance Profile
-  if [ -z "${Region}" ] || [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-    Region=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' || true)
-    [ -z "${AWS_REGION}" ] || Region=${AWS_REGION}
-    InstanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || true)
-    IAMJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${InstanceProfile}" 2>/dev/null || true)
-    AccessKeyId=$(echo "${IAMJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-    SecretAccessKey=$(echo "${IAMJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-    STSToken=$(echo "${IAMJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+SetRegion() {
 
-    # if STSToken is null, regarding as not running on EC2.
-    [ "${STSToken}" ] || { cat <<"ERROR" | sed 's/^/[ERROR] /' >/dev/stderr && exit 1
+  # 1. environment variable: AWS_REGION
+  if [ -z "${Region}" ] && [ "${AWS_REGION}" ]; then Region=${AWS_REGION}; fi
+  # 2. config file: ~/.aws/config
 
-SetIAMAndRegion: Failed to connect http://169.254.169.254/
-Follow the steps below to register your credentials:
+  if [ -z "${Region}" ] && [ -r ~/.aws/config ]; then
+    INI_region=""
+    eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/config)"
+    if [ "${INI_region}" ]; then Region=${INI_region}; fi
+  fi
+
+  # 3. meta-data
+  if [ -z "${Region}" ]; then
+    Region=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' ||:)
+  fi
+
+  if [ -z "${Region}" ]; then
+    ErrorMessage=$(cat <<"ERROR"
+
+SetRegion(): Not specified AWS Region
+Follow the steps below to register AWS region:
 
 1. Save config as: ~/.aws/config
 
     [default]
     region = ap-northeast-1
 
-2. Save credentials file as: ~/.aws/credentials
+ ** OR **
+
+1. Set environment variables:
+
+    $ export AWS_REGION=ap-northeast-1
+
+ERROR
+    LogError "${ErrorMessage}"
+    )
+    exit 1
+  fi
+
+}
+
+SetAccessKey() {
+  # get credentials from environment variables
+  if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
+    if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
+      AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
+    fi
+  fi
+  # get credentials from `~/.aws/config` and `~/.aws/credentials`
+  if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
+    if [ -r ~/.aws/credentials ]; then
+      INI_aws_access_key_id="" INI_aws_secret_access_key=""
+      eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/credentials)"
+      AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
+      if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
+        LogWarn "SetAccessKey(): Failed to parse ~/.aws/credentials"
+      fi
+    fi
+  fi
+  # get credentials from Instance Profile
+  if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
+    InstanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || :)
+    IAMJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${InstanceProfile}" 2>/dev/null ||:)
+    AccessKeyId=$(echo "${IAMJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    SecretAccessKey=$(echo "${IAMJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    STSToken=$(echo "${IAMJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+
+    # if STSToken is null, regarding as not running on EC2.
+    if [ -z "${STSToken}" ]; then
+    ErrorMessage=$(cat <<"ERROR"
+
+SetAccessKey(): Failed to connect http://169.254.169.254/
+Follow the steps below to register your credentials:
+
+1. Save credentials file as: ~/.aws/credentials
 
     [default]
     aws_access_key_id = AKIA****************
@@ -155,12 +197,14 @@ Follow the steps below to register your credentials:
 
 1. Set environment variables:
 
-    $ export AWS_REGION=ap-northeast-1
     $ export AWS_ACCESS_KEY_ID=AKIA****************
     $ export AWS_SECRET_ACCESS_KEY=****************************************
 
 ERROR
-    }
+    )
+    LogError "${ErrorMessage}"
+    exit 1
+    fi
   fi
 }
 
@@ -253,8 +297,9 @@ List() {
   # check sub commands
   case $1 in
     "")
+      SetRegion
       # If there is no argument, list the buckets.
-      SetIAMAndRegion
+      SetAccessKey
       BucketPath="/" CanonicalQueryString="" Payload=""
       SetAWSSignatureV4ForS3Get
       Response=$(CallAPIS3Get)
@@ -265,8 +310,9 @@ List() {
       fi
       ;;
     *)
+      SetRegion
       # If there is an argument, list the objects.
-      SetIAMAndRegion
+      SetAccessKey
       BucketPath="/$(ExtractHost "$1")"
       if [ -z "${MaxKeys}" ] || Contain "${MaxKeys}" "[^0-9]"; then MaxKeys=1000; fi
       Prefix=$(UriEncode "$(ExtractPath "$1" | sed 's|^/||')")
@@ -293,7 +339,8 @@ List() {
 
 Get() {
   [ "$#" = 0 ] && ReadMe && exit 1
-  SetIAMAndRegion
+  SetRegion
+  SetAccessKey
   BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
   CanonicalQueryString="" Payload=""
   SetAWSSignatureV4ForS3Get
