@@ -105,6 +105,7 @@ CheckDependency() (
 ); CheckDependency '[' cat curl date grep od openssl printf sed tr
 
 ParseINIFromStdinToStdout() (
+  # For the setting in the ini file, output commands which define them as shell variables prefixed "INI_".
   iniSectionPattern="${1:?"[FATAL] ParseINIFromStdinToStdout(): requires \"iniSectionPattern\" as \$1"}"
   sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/" /dev/stdin \
     | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
