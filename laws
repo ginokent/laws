@@ -76,9 +76,6 @@ This program relies heavily on "AWS Signature Version 4".
 README
 }
 
-True=0
-False=1
-
 LogWarn() (
   contents=${1:?"[FATAL] LogWarn(): requires \"contents\" as \$1"}
   printf "%s" "${contents}"  | sed "s/^/[WARN]  /" >/dev/stderr
@@ -93,17 +90,16 @@ Contain() (
   contents="${1:?"[FATAL] Contain(): requires \"contents\" as \$1"}"
   pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as \$2"}"
   if echo "${contents}" | grep -Eq "${pattern}"; then
-    return $True
-  else
-    return $False
+    return 0
   fi
+  return 1
 )
 
 CheckDependency() (
   for cmd in "$@"; do
     if ! command -v "${cmd}" >/dev/null; then
       LogError "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
-      exit $False
+      exit 1
     fi
   done
 ); CheckDependency '[' cat curl date grep od openssl printf sed tr
@@ -115,11 +111,10 @@ ParseINIFromStdinToStdout() (
 )
 
 SetRegion() {
-
   # 1. environment variable: AWS_REGION
   if [ -z "${Region}" ] && [ "${AWS_REGION}" ]; then Region=${AWS_REGION}; fi
-  # 2. config file: ~/.aws/config
 
+  # 2. config file: ~/.aws/config
   if [ -z "${Region}" ] && [ -r ~/.aws/config ]; then
     INI_region=""
     eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/config)"
@@ -135,6 +130,7 @@ SetRegion() {
     Region=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' ||:)
   fi
 
+  # check Region
   if [ -z "${Region}" ]; then
     ErrorMessage=$(cat <<"ERROR"
 
@@ -167,6 +163,7 @@ SetAccessKey() {
       AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
     fi
   fi
+
   # get credentials from `~/.aws/config` and `~/.aws/credentials`
   if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
     if [ -r ~/.aws/credentials ]; then
@@ -178,6 +175,7 @@ SetAccessKey() {
       fi
     fi
   fi
+
   # get credentials from Instance Profile
   if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
     InstanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || :)
@@ -313,7 +311,7 @@ CallAPIS3Get() {
 
 List() {
   # check sub commands
-  case $1 in
+  case "$1" in
     "")
       SetRegion
       # If there is no argument, list the buckets.
@@ -377,7 +375,7 @@ Get() {
 S3() {
   [ "$#" = 0 ] && ReadMe && exit 1
   # check sub commands
-  case $1 in
+  case "$1" in
     list|ls) shift && List "$@" ;;
     get|cat) shift && Get "$@" ;;
           *) ReadMe && exit 1 ;;
@@ -387,7 +385,7 @@ S3() {
 main() {
   [ "$#" = 0 ] && ReadMe && exit 1
   # check sub commands
-  case $1 in
+  case "$1" in
     s3) shift && S3 "$@" ;;
      *) ReadMe && exit 1 ;;
   esac
