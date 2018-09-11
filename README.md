@@ -2,13 +2,14 @@
 laws
 ====
 
-Lightweight shell script for Amazon Web Service like AWS CLI.
+Lightweight shell script for Amazon Web Service Command Line Interface like AWS CLI.
 
 
 ## TL;DR
 
     curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 ls
-    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 get s3://your-bucket/path/to/file
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 cat s3://your-bucket/path/to/file
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 cp s3://your-bucket/path/to/file /path/to/file
 
 
 ## Install:
@@ -48,6 +49,14 @@ Get the contents of the file on Amazon S3.
 
     $ laws s3 get s3://your-bucket/path/to/file
     $ laws s3 cat s3://your-bucket/path/to/file
+
+
+#### `s3 copy`
+Copy a file.  
+
+    $ laws s3 cp s3://your-bucket/path/to/file /path/to/file
+    $ (unimplemented) laws s3 cp /path/to/file s3://your-bucket/path/to/file
+    $ (unimplemented) laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
 
 
 ## Note:
