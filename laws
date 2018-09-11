@@ -17,7 +17,7 @@ Lightweight shell script for Amazon Web Service Command Line Interface like AWS 
 ## TL;DR
 
     curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 ls
-    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 get s3://your-bucket/path/to/file
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 get s3://your-bucket/path/to/file > /path/to/file
 
 
 ## Install:
@@ -89,7 +89,7 @@ LogError() (
 Contain() (
   contents="${1:?"[FATAL] Contain(): requires \"contents\" as \$1"}"
   pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as \$2"}"
-  if echo "${contents}" | grep -Eq "${pattern}"; then
+  if echo "${contents}" | grep -Eq -- "${pattern}"; then
     return 0
   fi
   return 1
@@ -313,7 +313,7 @@ CallAPIS3Get() {
 List() {
   # check sub commands
   case "$1" in
-    "")
+    "") # when $# = 0
       SetRegion
       # If there is no argument, list the buckets.
       SetAccessKey
@@ -355,7 +355,7 @@ List() {
 }
 
 Get() {
-  [ "$#" = 0 ] && ReadMe && exit 1
+  if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
   SetRegion
   SetAccessKey
   BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
@@ -374,7 +374,7 @@ Get() {
 }
 
 S3() {
-  [ "$#" = 0 ] && ReadMe && exit 1
+  if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
   # check sub commands
   case "$1" in
     list|ls) shift && List "$@" ;;
@@ -384,7 +384,7 @@ S3() {
 }
 
 main() {
-  [ "$#" = 0 ] && ReadMe && exit 1
+  if [ "$#" = 0 ] || Contain "$*" "-h|help"; then ReadMe; exit 0; fi
   # check sub commands
   case "$1" in
     s3) shift && S3 "$@" ;;
