@@ -58,6 +58,16 @@ Copy a file.
     $ (unimplemented) laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
 
 
+#### completion
+Tab Completion.
+
+    $ . $(command -v laws)
+
+OR  
+
+    $ . /path/to/laws
+
+
 ## Note:
 This program relies heavily on "AWS Signature Version 4".  
 
