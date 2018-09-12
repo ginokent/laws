@@ -1,6 +1,6 @@
 #!/bin/bash
 
-printf "\e[1;32m%s\e[0m\n" "`LANG=C date` [INFO]  git pull ..."
+echo git pull ...
 git pull
 
 RELEASE_BRANCH_NAME="master"
