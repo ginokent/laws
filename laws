@@ -3,6 +3,8 @@
 
 if [ -z "${PS1}" ]; then
 
+  # Non-interactive: execute laws as command
+
   set -e
 
   readonly VERSION="0.0.6"
@@ -378,6 +380,7 @@ ERROR
   }
 
   Get() {
+    # display README
     if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
     SetRegion
     SetAccessKey
@@ -399,13 +402,14 @@ ERROR
   }
 
   Copy() {
-    if [ "$#" -le 1 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
-
+    # display README
+    if [ "$#" -lt 2 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+    # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
       Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
       exit 1
     fi
-
+    # copy local to s3
     if [ ! -x "$1" ]; then
       if [ -d "$(dirname "$2")" ]; then
         Get "$1" > "$2"
@@ -415,6 +419,7 @@ ERROR
   }
 
   S3() {
+    # display README
     if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
     # check sub commands
     case "$1" in
@@ -426,8 +431,10 @@ ERROR
   }
 
   main() {
-    if [ "$#" = 0 ] || Contain "$*" "-h|help"; then ReadMe; exit 0; fi # display README
-    if Contain "$*" "-V|\-*version"; then echo "${PROGRAM_NAME} ${VERSION}"; exit 0; fi # display version
+    # display README
+    if [ "$#" = 0 ] || Contain "$*" "-h|help"; then ReadMe; exit 0; fi
+    # display version
+    if Contain "$*" "-V|\-*version"; then echo "${PROGRAM_NAME} ${VERSION}"; exit 0; fi
     # check sub commands
     case "$1" in
       s3) shift && S3 "$@" ;;
@@ -439,7 +446,7 @@ ERROR
 
 else
 
-  # completion
+  # Interactive: laws as completion
   # ref: https://blog.cybozu.io/entry/2016/09/26/080000
   # shellcheck disable=SC2039,SC2207
   _laws() {
@@ -452,8 +459,14 @@ else
         COMPREPLY=( $(compgen -W "ls cat" -- "${cur}") )
       fi
     elif [ "${cword}" -eq 3 ]; then
-      if [ "${prev}" = "ls" ]; then
-        COMPREPLY=( $(compgen -W "$(laws s3 ls | sed 's/^[^[:space:]]*[[:space:]]//')" -- "${cur}") )
+      if [ "${prev}" = "ls" ] || [ "${prev}" = "cat" ]; then
+        if [ -z "${__laws_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_completion_previous_execution_time)) -gt 30 ]; then
+          __laws_completion_previous_execution_time=$(date +%s)
+          __laws_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+          COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )
+        else
+          COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )
+        fi
       fi
     fi
   } && complete -F _laws laws
