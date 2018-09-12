@@ -42,13 +42,18 @@ TEST_06="$(
   )" | LANG=C sed 's/[^[:graph:][:space:]]*//g' | sed "s/^/$(LANG=C date) [TEST]  /" | { cat; echo; } | tee /dev/stderr | sed 's/.*[TEST][[:blank:]]*//g'
 )"
 
+printf "\e[1;37m%s\e[0m\n" "$(LANG=C date) [TEST]  -- Fail AWS_PROFILE ----------------"
+TEST_07="$(
+  AWS_PROFILE=fail ./laws s3 ls 2>/dev/stdout | tee /dev/stderr
+)"
 
-set +x; if   [ -n "$(echo ${TEST_01} | grep -Ev '^$|^<.*>$')" ] \
-  && [ -n "$(echo ${TEST_02} | grep -Ev '^$|^<.*>$')" ] \
-  && [ -n "$(echo ${TEST_03} | grep -Ev '^$|^<.*>$')" ] \
-  && [ -n "$(echo ${TEST_04} | grep -Ev '^$|^<.*>$')" ] \
-  && [ -n "$(echo ${TEST_05} | grep -Ev '^$|^<.*>$')" ] \
-  && [ -n "$(echo ${TEST_06} | grep -Ev '^$|^<.*>$')" ]; then
+set +x; if   [ "$(echo ${TEST_01} | grep -Ev '^$|^<.*>$')" ] \
+  && [ "$(echo ${TEST_02} | grep -Ev '^$|^<.*>$')" ] \
+  && [ "$(echo ${TEST_03} | grep -Ev '^$|^<.*>$')" ] \
+  && [ "$(echo ${TEST_04} | grep -Ev '^$|^<.*>$')" ] \
+  && [ "$(echo ${TEST_05} | grep -Ev '^$|^<.*>$')" ] \
+  && [ "$(echo ${TEST_06} | grep -Ev '^$|^<.*>$')" ] \
+  && [ "$(echo ${TEST_07} | grep -Ev '^$|^<.*>$')" ]; then
   printf "\e[32m%s\e[0m\n" "$(LANG=C date) [INFO]  -- $0 Passed ----------------"
 else
   printf "\e[1;31m%s\e[0m\n" "$(LANG=C date) [ERROR] == $0 Failed ================" && exit 1
