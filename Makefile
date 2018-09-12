@@ -21,5 +21,9 @@ readme:
 		|| { printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == git diff ./README.md Failed ================"; false; }
 
 version:
-	git tag
-	./laws --version
+	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- git tag ----------------"
+	@git tag
+	@printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- git tag Passed ----------------"
+	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- ./laws --version ----------------"
+	@./laws --version
+	@printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- ./laws --version Passed ----------------"
