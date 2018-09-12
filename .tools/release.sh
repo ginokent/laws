@@ -27,7 +27,12 @@ if [ "${VERSION}" != "${TAG_LATEST_VERSION}" ]; then
     printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] Please git checkout ${RELEASE_BRANCH_NAME}"
     exit 1
   fi
-  git checkout ${RELEASE_BRANCH_NAME}
+  if [ "`git diff`" ] || [ "`git diff --staged`" ]; then
+    printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == uncommitted changes ================"
+    printf "\e[1;31m%s\e[0m\n" "$({ git diff; git diff --staged; } | sed "s/^/`LANG=C date` [ERROR] /")"
+    printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] Please git add -A && git commit"
+    exit 1
+  fi
   git tag -a ${VERSION} -m "release ${VERSION}"
   git push origin ${VERSION}
   git checkout ${CURRENT_BRANCH_NAME}
