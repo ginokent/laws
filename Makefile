@@ -21,10 +21,18 @@ readme:
 		&& { printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- git diff ./README.md Passed ----------------"; } \
 		|| { printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == git diff ./README.md Failed ================"; false; }
 
-release:
+tag:
 	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- git tag ----------------"
 	@git tag
 	@printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- git tag Passed ----------------"
-	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- git tag -a ${VERSION} -m 'release ${VERSION}' && git push origin ${VERSION} ----------------"
-	@git tag -a ${VERSION} -m 'release ${VERSION}' && git push origin ${VERSION}
-	@printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- git tag -a ${VERSION} -m 'release ${VERSION}' && git push origin ${VERSION} Passed ----------------"
+	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- git tag -a ${VERSION} -m 'release ${VERSION}' ----------------"
+	@git tag -a ${VERSION} -m 'release ${VERSION}'
+	@printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- git tag -a ${VERSION} -m 'release ${VERSION}' Passed ----------------"
+	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- git tag ----------------"
+	@git tag
+	@printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- git tag Passed ----------------"
+
+release:
+	@printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- git push origin ${VERSION} ----------------"
+	@git push origin ${VERSION}
+	@printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- git push origin ${VERSION} Passed ----------------"
