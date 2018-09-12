@@ -33,6 +33,7 @@ if [ "${VERSION}" != "${TAG_LATEST_VERSION}" ]; then
     printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] Please git add -A && git commit"
     exit 1
   fi
+  git push
   git tag -a ${VERSION} -m "release ${VERSION}"
   git push origin ${VERSION}
   git checkout ${CURRENT_BRANCH_NAME}
