@@ -51,21 +51,19 @@ Display help.
     $ laws help
 
 
-#### `s3 list`
+#### `s3 ls`
 List the contents on Amazon S3.  
 
-    $ laws s3 list [<your-bucket>[<prefix>]]
     $ laws s3 ls [<your-bucket>[<prefix>]]
 
 
-#### `s3 get`
+#### `s3 cat`
 Get the contents of the file on Amazon S3.  
 
-    $ laws s3 get s3://your-bucket/path/to/file
     $ laws s3 cat s3://your-bucket/path/to/file
 
 
-#### `s3 copy`
+#### `s3 cp`
 Copy a file.  
 
     $ laws s3 cp s3://your-bucket/path/to/file /path/to/file
@@ -107,7 +105,7 @@ README
   )
 
   Contain() (
-    contents="${1:?"[FATAL] Contain(): requires \"contents\" as \$1"}"
+    contents="$1"
     pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as \$2"}"
     if echo "${contents}" | grep -Eq -- "${pattern}"; then
       return 0
@@ -329,6 +327,17 @@ ERROR
     } | sh
   }
 
+  ListArgs() {
+    # display README
+    if [ "$#" = 0 ]; then
+      List
+    else 
+      for arg in "$@"; do
+        List "${arg}"
+      done
+    fi
+  }
+
   List() {
     # check sub commands
     case "$1" in
@@ -401,6 +410,14 @@ ERROR
     cat "${TmpFile}"
   }
 
+  Concatenate() {
+    # display README
+    if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+    for arg in "$@"; do
+      Get "${arg}"
+    done
+  }
+
   Copy() {
     # display README
     if [ "$#" -lt 2 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
@@ -423,9 +440,9 @@ ERROR
     if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
     # check sub commands
     case "$1" in
-      list|ls) shift && List "$@" ;;
-      get|cat) shift && Get "$@" ;;
-      copy|cp) shift && Copy "$@" ;;
+       ls) shift && ListArgs "$@" ;;
+      cat) shift && Concatenate "$@" ;;
+       cp) shift && Copy "$@" ;;
             *) ReadMe; exit 1 ;;
     esac
   }
@@ -456,7 +473,7 @@ else
       COMPREPLY=( $(compgen -W "s3" -- "${cur}") )
     elif [ "${cword}" -eq 2 ]; then
       if [ "${prev}" = "s3" ]; then
-        COMPREPLY=( $(compgen -W "ls cat" -- "${cur}") )
+        COMPREPLY=( $(compgen -W "ls cat cp" -- "${cur}") )
       fi
     elif [ "${cword}" -eq 3 ]; then
       if [ "${prev}" = "ls" ] || [ "${prev}" = "cat" ]; then

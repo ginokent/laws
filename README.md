@@ -37,21 +37,19 @@ Display help.
     $ laws help
 
 
-#### `s3 list`
+#### `s3 ls`
 List the contents on Amazon S3.  
 
-    $ laws s3 list [<your-bucket>[<prefix>]]
     $ laws s3 ls [<your-bucket>[<prefix>]]
 
 
-#### `s3 get`
+#### `s3 cat`
 Get the contents of the file on Amazon S3.  
 
-    $ laws s3 get s3://your-bucket/path/to/file
     $ laws s3 cat s3://your-bucket/path/to/file
 
 
-#### `s3 copy`
+#### `s3 cp`
 Copy a file.  
 
     $ laws s3 cp s3://your-bucket/path/to/file /path/to/file
