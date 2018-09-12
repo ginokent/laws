@@ -1,13 +1,15 @@
 #!/bin/sh
 # shellcheck disable=SC1117
 
-set -e
+if [ -z "${PS1}" ]; then
 
-readonly VERSION="0.0.6"
-readonly PROGRAM_NAME="$(basename "$0")"
+  set -e
 
-ReadMe() {
-cat <<"README" >/dev/stderr
+  readonly VERSION="0.0.6"
+  readonly PROGRAM_NAME="$(basename -- "$0")"
+
+  ReadMe() {
+  cat <<"README" >/dev/stderr
 
 laws
 ====
@@ -82,74 +84,74 @@ This program relies heavily on "AWS Signature Version 4".
     https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html  
   - GET Bucket (List Objects) Version 2  
     https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
-
+;
 README
-}
+  }
 
-DateUTC() (
-  LANG=C TZ=UTC date +"%Y%m%dT%H%M%SZ"
-)
+  DateUTC() (
+    LANG=C TZ=UTC date +"%Y%m%dT%H%M%SZ"
+  )
 
-Log() (
-  level=${1:?"[FATAL] Log(): requires \"level\" as \$1"}
-  contents=${2:?"[FATAL] Log(): requires \"contents\" as \$2"}
-  case "$level" in
-    f|F) contents_leveled="FATAL ${contents}" ;;
-    e|E) contents_leveled="ERROR ${contents}" ;;
-    w|W) contents_leveled="WARN  ${contents}" ;;
-      *) contents_leveled="INFO  ${contents}" ;;
-  esac
-  printf "%s" "${contents_leveled}" | sed "s/^/$(DateUTC) ${PROGRAM_NAME}[$$]: /" >/dev/stderr
-)
+  Log() (
+    level=${1:?"[FATAL] Log(): requires \"level\" as \$1"}
+    contents=${2:?"[FATAL] Log(): requires \"contents\" as \$2"}
+    case "$level" in
+      f|F) contents_leveled="FATAL ${contents}" ;;
+      e|E) contents_leveled="ERROR ${contents}" ;;
+      w|W) contents_leveled="WARN  ${contents}" ;;
+        *) contents_leveled="INFO  ${contents}" ;;
+    esac
+    printf "%s" "${contents_leveled}" | sed "s/^/$(DateUTC) ${PROGRAM_NAME}[$$]: /" >/dev/stderr
+  )
 
-Contain() (
-  contents="${1:?"[FATAL] Contain(): requires \"contents\" as \$1"}"
-  pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as \$2"}"
-  if echo "${contents}" | grep -Eq -- "${pattern}"; then
-    return 0
-  fi
-  return 1
-)
-
-CheckDependency() (
-  for cmd in "$@"; do
-    if ! command -v "${cmd}" >/dev/null; then
-      Log E "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
-      exit 1
+  Contain() (
+    contents="${1:?"[FATAL] Contain(): requires \"contents\" as \$1"}"
+    pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as \$2"}"
+    if echo "${contents}" | grep -Eq -- "${pattern}"; then
+      return 0
     fi
-  done
-); CheckDependency '[' cat curl date grep od openssl printf sed tr
+    return 1
+  )
 
-ParseINIFromStdinToStdout() (
-  # For the setting in the ini file, output commands which define them as shell variables prefixed "INI_".
-  iniSectionPattern="${1:?"[FATAL] ParseINIFromStdinToStdout(): requires \"iniSectionPattern\" as \$1"}"
-  sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/" /dev/stdin \
-    | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
-)
+  CheckDependency() (
+    for cmd in "$@"; do
+      if ! command -v "${cmd}" >/dev/null; then
+        Log E "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
+        exit 1
+      fi
+    done
+  ); CheckDependency '[' cat curl date grep od openssl printf sed tr
 
-SetRegion() {
-  # 1. environment variable: AWS_REGION
-  if [ -z "${Region}" ] && [ "${AWS_REGION}" ]; then Region=${AWS_REGION}; fi
+  ParseINIFromStdinToStdout() (
+    # For the setting in the ini file, output commands which define them as shell variables prefixed "INI_".
+    iniSectionPattern="${1:?"[FATAL] ParseINIFromStdinToStdout(): requires \"iniSectionPattern\" as \$1"}"
+    sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/" /dev/stdin \
+      | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
+  )
 
-  # 2. config file: ~/.aws/config
-  if [ -z "${Region}" ] && [ -r ~/.aws/config ]; then
-    INI_region=""
-    eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/config)"
-    if [ "${INI_region}" ]; then
-      Region=${INI_region}
-    else
-      Log W "SetRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
+  SetRegion() {
+    # 1. environment variable: AWS_REGION
+    if [ -z "${Region}" ] && [ "${AWS_REGION}" ]; then Region=${AWS_REGION}; fi
+
+    # 2. config file: ~/.aws/config
+    if [ -z "${Region}" ] && [ -r ~/.aws/config ]; then
+      INI_region=""
+      eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/config)"
+      if [ "${INI_region}" ]; then
+        Region=${INI_region}
+      else
+        Log W "SetRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
+      fi
     fi
-  fi
 
-  # 3. meta-data
-  if [ -z "${Region}" ]; then
-    Region=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' ||:)
-  fi
+    # 3. meta-data
+    if [ -z "${Region}" ]; then
+      Region=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' ||:)
+    fi
 
-  # check Region
-  if [ -z "${Region}" ]; then
-    ErrorMessage=$(cat <<"ERROR"
+    # check Region
+    if [ -z "${Region}" ]; then
+      ErrorMessage=$(cat <<"ERROR"
 
 SetRegion(): Not specified AWS Region
 Follow the steps below to register AWS region:
@@ -164,46 +166,45 @@ Follow the steps below to register AWS region:
 1. Set environment variables:
 
     $ export AWS_REGION=ap-northeast-1
- 
+;
 ERROR
-    )
-    Log E "${ErrorMessage}"
-    exit 1
-  fi
-
-}
-
-SetAccessKey() {
-  # get credentials from environment variables
-  if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-    if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
-      AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
+      )
+      Log E "${ErrorMessage}"
+      exit 1
     fi
-  fi
+  }
 
-  # get credentials from `~/.aws/config` and `~/.aws/credentials`
-  if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-    if [ -r ~/.aws/credentials ]; then
-      INI_aws_access_key_id="" INI_aws_secret_access_key=""
-      eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/credentials)"
-      AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
-      if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-        Log W "SetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
+  SetAccessKey() {
+    # get credentials from environment variables
+    if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
+      if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
+        AccessKeyId=${AWS_ACCESS_KEY_ID} SecretAccessKey=${AWS_SECRET_ACCESS_KEY}
       fi
     fi
-  fi
 
-  # get credentials from Instance Profile
-  if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-    InstanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || :)
-    IAMJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${InstanceProfile}" 2>/dev/null ||:)
-    AccessKeyId=$(echo "${IAMJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-    SecretAccessKey=$(echo "${IAMJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-    STSToken=$(echo "${IAMJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    # get credentials from `~/.aws/config` and `~/.aws/credentials`
+    if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
+      if [ -r ~/.aws/credentials ]; then
+        INI_aws_access_key_id="" INI_aws_secret_access_key=""
+        eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/credentials)"
+        AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
+        if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
+          Log W "SetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
+        fi
+      fi
+    fi
 
-    # if STSToken is null, regarding as not running on EC2.
-    if [ -z "${STSToken}" ]; then
-    ErrorMessage=$(cat <<"ERROR"
+    # get credentials from Instance Profile
+    if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
+      InstanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || :)
+      IAMJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${InstanceProfile}" 2>/dev/null ||:)
+      AccessKeyId=$(echo "${IAMJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+      SecretAccessKey=$(echo "${IAMJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+      STSToken=$(echo "${IAMJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+
+      # if STSToken is null, regarding as not running on EC2.
+      if [ -z "${STSToken}" ]; then
+      ErrorMessage=$(cat <<"ERROR"
 
 SetAccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
@@ -220,218 +221,241 @@ Follow the steps below to register your credentials:
 
     $ export AWS_ACCESS_KEY_ID=AKIA****************
     $ export AWS_SECRET_ACCESS_KEY=****************************************
- 
+;
 ERROR
-    )
-    Log E "${ErrorMessage}"
-    exit 1
-    fi
-  fi
-}
-
-Hex() {
-  printf "%s" "$1" | od -v -A n -t x1 | tr -d '[:blank:]|\n'
-}
-
-HMAC() {
-  printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
-}
-
-SHA256Hash() {
-  printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
-}
-
-TrimSchemeAndSlashSlash() {
-  printf "%s" "$1" | sed 's|^[^:]*://||'
-}
-
-ExtractPattern() (
-  contents=${1:?"[FATAL] ExtractPattern(): requires \"contents\" as \$1"}
-  pattern=${2:?"[FATAL] ExtractPattern(): requires \"pattern\" as \$2"}
-  echo "${contents}" | grep -Eo "${pattern}"
-)
-
-ExtractXMLValue() (
-  contents=${1:?"[FATAL] ExtractPattern(): requires \"contents\" as \$1"}
-  tagName=${2:?"[FATAL] ExtractXMLValue(): requires \"tagName\" as \$2"}
-  echo "${contents}" | grep -Eo "<${tagName}>.*</${tagName}>" | sed "s|</*${tagName}>||g"
-)
-
-ExtractHost() {
-  TrimSchemeAndSlashSlash "$1" | sed 's|/.*||'
-}
-
-ExtractPath() {
-  TrimSchemeAndSlashSlash "$1" | grep '/' | sed 's|^[^/]*/||'
-}
-
-UriEncodeWithoutSlash() {
-  printf "%s" "$1" | sed 's|+|%2B|g; s|=|%3D|g; s|\$|%24|g' # TODO: Perhaps the character `$` may not be handled.
-}
-
-UriEncode() {
-  UriEncodeWithoutSlash "$1" | sed 's|/|%2F|g'
-}
-
-CanonicalHeader() {
-  printf "%s\n" "host:${APIEndpoint}"
-  printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
-  printf "%s\n" "x-amz-date:${DateISO8601}"
-  [ -z "${STSToken}" ] || printf "%s\n" "x-amz-security-token:${STSToken}"
-}
-
-CanonicalRequest() {
-  printf "%s\n" "${HTTPMethod}" # GET
-  printf "%s\n" "${BucketPath}" # /your-backet
-  printf "%s\n" "${CanonicalQueryString}" # list-type=2&prefix=%2Fpath%2Fto%2Ffile
-  printf "%s\n" "$(CanonicalHeader)"
-  printf "%s\n" "" # blank lines are required
-  printf "%s\n" "$(CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
-  printf "%s\n" "${HashedPayload}"
-}
-
-SetAWSSignatureV4ForS3Get() {
-  # AWS Signature Version 4 for Amazon S3 REST API
-  HTTPMethod="GET"
-  [ "${APIEndpoint}" ] || APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
-  DateYMD=$(date +'%Y%m%d')
-  DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
-  HashedPayload=$(SHA256Hash "${Payload}")
-  CanonicalRequest=$(CanonicalRequest)
-  StringtoSign=$(
-    printf "%s\n" "AWS4-HMAC-SHA256"
-    printf "%s\n" "${DateISO8601}"
-    printf "%s\n" "${DateYMD}/${Region}/s3/aws4_request"
-    printf "%s\n" "$(SHA256Hash "${CanonicalRequest}")"
-  )
-  Signature=$(
-    HMAC "$(HMAC "$(HMAC "$(HMAC "$(HMAC "$(Hex "AWS4${SecretAccessKey}")" "${DateYMD}")" "${Region}")" "s3")" "aws4_request")" "${StringtoSign}"
-  )
-  Authorization=$(
-    printf "%s" "AWS4-HMAC-SHA256"
-    printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
-    printf "%s" " SignedHeaders=$(CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
-    printf "%s" " Signature=${Signature}"
-  )
-}
-
-CallAPIS3Get() {
-  {
-    printf "%s" "curl -kLsS 'https://${APIEndpoint}${BucketPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")'"
-    printf "%s" " -H 'Host: ${APIEndpoint}'"
-    printf "%s" " -H 'x-amz-content-sha256: ${HashedPayload}'"
-    printf "%s" " -H 'x-amz-date: ${DateISO8601}'"
-    [ -z "${STSToken}" ] || printf "%s" " -H 'x-amz-security-token: ${STSToken}'"
-    printf "%s" " -H 'Authorization: ${Authorization}'"
-  } | sh
-}
-
-List() {
-  # check sub commands
-  case "$1" in
-    "") # when $# = 0
-      SetRegion
-      # If there is no argument, list the buckets.
-      SetAccessKey
-      BucketPath="/" CanonicalQueryString="" Payload=""
-      SetAWSSignatureV4ForS3Get
-      Response=$(CallAPIS3Get)
-      if Contain "${Response}" "</Error>"; then
-        echo "${Response}" >/dev/stderr
-        exit 1
+      )
+      Log E "${ErrorMessage}"
+      exit 1
       fi
-      echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
-      ;;
-    *)
-      SetRegion
-      # If there is an argument, list the objects.
-      SetAccessKey
-      BucketName=$(ExtractHost "$1")
-      BucketPath="/${BucketName}" Payload=""
-      if [ -z "${MaxKeys}" ] || Contain "${MaxKeys}" "[^0-9]"; then MaxKeys=1000; fi
-      Prefix=$(UriEncode "$(ExtractPath "$1")")
-      CanonicalQueryString="$(
-        [ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&"
-      )list-type=2&max-keys=${MaxKeys}$(
-        [ -z "${Prefix}" ] || printf "%s" "&prefix=${Prefix}"
-      )"
-      SetAWSSignatureV4ForS3Get
-      Response=$(CallAPIS3Get)
-      # check error
-      if Contain "${Response}" "</Error>"; then
-        if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
-          APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
+    fi
+  }
+
+  Hex() {
+    printf "%s" "$1" | od -v -A n -t x1 | tr -d '[:blank:]|\n'
+  }
+
+  HMAC() {
+    printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
+  }
+
+  SHA256Hash() {
+    printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
+  }
+
+  TrimSchemeAndSlashSlash() {
+    printf "%s" "$1" | sed 's|^[^:]*://||'
+  }
+
+  ExtractPattern() (
+    contents=${1:?"[FATAL] ExtractPattern(): requires \"contents\" as \$1"}
+    pattern=${2:?"[FATAL] ExtractPattern(): requires \"pattern\" as \$2"}
+    echo "${contents}" | grep -Eo "${pattern}"
+  )
+
+  ExtractXMLValue() (
+    contents=${1:?"[FATAL] ExtractPattern(): requires \"contents\" as \$1"}
+    tagName=${2:?"[FATAL] ExtractXMLValue(): requires \"tagName\" as \$2"}
+    echo "${contents}" | grep -Eo "<${tagName}>.*</${tagName}>" | sed "s|</*${tagName}>||g"
+  )
+
+  ExtractHost() {
+    TrimSchemeAndSlashSlash "$1" | sed 's|/.*||'
+  }
+
+  ExtractPath() {
+    TrimSchemeAndSlashSlash "$1" | grep '/' | sed 's|^[^/]*/||'
+  }
+
+  UriEncodeWithoutSlash() {
+    printf "%s" "$1" | sed 's|+|%2B|g; s|=|%3D|g; s|\$|%24|g' # TODO: Perhaps the character `$` may not be handled.
+  }
+
+  UriEncode() {
+    UriEncodeWithoutSlash "$1" | sed 's|/|%2F|g'
+  }
+
+  CanonicalHeader() {
+    printf "%s\n" "host:${APIEndpoint}"
+    printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
+    printf "%s\n" "x-amz-date:${DateISO8601}"
+    [ -z "${STSToken}" ] || printf "%s\n" "x-amz-security-token:${STSToken}"
+  }
+
+  CanonicalRequest() {
+    printf "%s\n" "${HTTPMethod}" # GET
+    printf "%s\n" "${BucketPath}" # /your-backet
+    printf "%s\n" "${CanonicalQueryString}" # list-type=2&prefix=%2Fpath%2Fto%2Ffile
+    printf "%s\n" "$(CanonicalHeader)"
+    printf "%s\n" "" # blank lines are required
+    printf "%s\n" "$(CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
+    printf "%s\n" "${HashedPayload}"
+  }
+
+  SetAWSSignatureV4ForS3Get() {
+    # AWS Signature Version 4 for Amazon S3 REST API
+    HTTPMethod="GET"
+    [ "${APIEndpoint}" ] || APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
+    DateYMD=$(date +'%Y%m%d')
+    DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
+    HashedPayload=$(SHA256Hash "${Payload}")
+    CanonicalRequest=$(CanonicalRequest)
+    StringtoSign=$(
+      printf "%s\n" "AWS4-HMAC-SHA256"
+      printf "%s\n" "${DateISO8601}"
+      printf "%s\n" "${DateYMD}/${Region}/s3/aws4_request"
+      printf "%s\n" "$(SHA256Hash "${CanonicalRequest}")"
+    )
+    Signature=$(
+      HMAC "$(HMAC "$(HMAC "$(HMAC "$(HMAC "$(Hex "AWS4${SecretAccessKey}")" "${DateYMD}")" "${Region}")" "s3")" "aws4_request")" "${StringtoSign}"
+    )
+    Authorization=$(
+      printf "%s" "AWS4-HMAC-SHA256"
+      printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
+      printf "%s" " SignedHeaders=$(CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
+      printf "%s" " Signature=${Signature}"
+    )
+  }
+
+  CallAPIS3Get() {
+    {
+      printf "%s" "curl -kLsS 'https://${APIEndpoint}${BucketPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")'"
+      printf "%s" " -H 'Host: ${APIEndpoint}'"
+      printf "%s" " -H 'x-amz-content-sha256: ${HashedPayload}'"
+      printf "%s" " -H 'x-amz-date: ${DateISO8601}'"
+      [ -z "${STSToken}" ] || printf "%s" " -H 'x-amz-security-token: ${STSToken}'"
+      printf "%s" " -H 'Authorization: ${Authorization}'"
+    } | sh
+  }
+
+  List() {
+    # check sub commands
+    case "$1" in
+      "") # when $# = 0
+        SetRegion
+        # If there is no argument, list the buckets.
+        SetAccessKey
+        BucketPath="/" CanonicalQueryString="" Payload=""
+        SetAWSSignatureV4ForS3Get
+        Response=$(CallAPIS3Get)
+        if Contain "${Response}" "</Error>"; then
+          echo "${Response}" >/dev/stderr
+          exit 1
+        fi
+        echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
+        ;;
+      *)
+        SetRegion
+        # If there is an argument, list the objects.
+        SetAccessKey
+        BucketName=$(ExtractHost "$1")
+        BucketPath="/${BucketName}" Payload=""
+        if [ -z "${MaxKeys}" ] || Contain "${MaxKeys}" "[^0-9]"; then MaxKeys=1000; fi
+        Prefix=$(UriEncode "$(ExtractPath "$1")")
+        CanonicalQueryString="$(
+          [ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&"
+        )list-type=2&max-keys=${MaxKeys}$(
+          [ -z "${Prefix}" ] || printf "%s" "&prefix=${Prefix}"
+        )"
+        SetAWSSignatureV4ForS3Get
+        Response=$(CallAPIS3Get)
+        # check error
+        if Contain "${Response}" "</Error>"; then
+          if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
+            APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
+            List "$@"
+          fi
+          echo "${Response}" >/dev/stderr
+          exit 1
+        fi
+        # normal
+        ExtractPattern "${Response}" "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"${BucketName}/"'\1|g'
+        if Contain "${Response}" "<NextContinuationToken>[^<]*"; then
+          ContinuationToken=$(UriEncode "$(ExtractPattern "${Response}" "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
           List "$@"
         fi
-        echo "${Response}" >/dev/stderr
-        exit 1
+        ;;
+    esac
+  }
+
+  Get() {
+    if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+    SetRegion
+    SetAccessKey
+    BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
+    CanonicalQueryString="" Payload=""
+    SetAWSSignatureV4ForS3Get
+    TmpFile=$(mktemp)
+    CallAPIS3Get > "${TmpFile}"
+    Response="$(cat "${TmpFile}")"
+    if Contain "${Response}" "</Error>"; then
+      if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
+        APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
+        Get "$@"
       fi
-      # normal
-      ExtractPattern "${Response}" "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"${BucketName}/"'\1|g'
-      if Contain "${Response}" "<NextContinuationToken>[^<]*"; then
-        ContinuationToken=$(UriEncode "$(ExtractPattern "${Response}" "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
-        List "$@"
+      echo "${Response}" >/dev/stderr
+      exit 1
+    fi
+    cat "${TmpFile}"
+  }
+
+  Copy() {
+    if [ "$#" -le 1 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+
+    if [ -r "$1" ] && [ ! -x "$2" ]; then
+      Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
+      exit 1
+    fi
+
+    if [ ! -x "$1" ]; then
+      if [ -d "$(dirname "$2")" ]; then
+        Get "$1" > "$2"
+        exit 0
       fi
-      ;;
-  esac
-}
-
-Get() {
-  if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
-  SetRegion
-  SetAccessKey
-  BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
-  CanonicalQueryString="" Payload=""
-  SetAWSSignatureV4ForS3Get
-  TmpFile=$(mktemp)
-  CallAPIS3Get > "${TmpFile}"
-  Response="$(cat "${TmpFile}")"
-  if Contain "${Response}" "</Error>"; then
-    if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
-      APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
-      Get "$@"
     fi
-    echo "${Response}" >/dev/stderr
-    exit 1
-  fi
-  cat "${TmpFile}"
-}
+  }
 
-Copy() {
-  if [ "$#" -le 1 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+  S3() {
+    if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+    # check sub commands
+    case "$1" in
+      list|ls) shift && List "$@" ;;
+      get|cat) shift && Get "$@" ;;
+      copy|cp) shift && Copy "$@" ;;
+            *) ReadMe; exit 1 ;;
+    esac
+  }
 
-  if [ -r "$1" ] && [ ! -x "$2" ]; then
-    Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
-    exit 1
-  fi
+  main() {
+    if [ "$#" = 0 ] || Contain "$*" "-h|help"; then ReadMe; exit 0; fi # display README
+    if Contain "$*" "-V|\-*version"; then echo "${PROGRAM_NAME} ${VERSION}"; exit 0; fi # display version
+    # check sub commands
+    case "$1" in
+      s3) shift && S3 "$@" ;;
+       *) ReadMe; exit 1 ;;
+    esac
+  }
 
-  if [ ! -x "$1" ]; then
-    if [ -d "$(dirname "$2")" ]; then
-      Get "$1" > "$2"
-      exit 0
+  main "$@"
+
+else
+
+  # completion
+  # ref: https://blog.cybozu.io/entry/2016/09/26/080000
+  # shellcheck disable=SC2039,SC2207
+  _laws() {
+    local cur prev cword
+    _get_comp_words_by_ref -n : cur prev cword
+    if [ "${cword}" -eq 1 ]; then
+      COMPREPLY=( $(compgen -W "s3" -- "${cur}") )
+    elif [ "${cword}" -eq 2 ]; then
+      if [ "${prev}" = "s3" ]; then
+        COMPREPLY=( $(compgen -W "ls cat" -- "${cur}") )
+      fi
+    elif [ "${cword}" -eq 3 ]; then
+      if [ "${prev}" = "ls" ]; then
+        COMPREPLY=( $(compgen -W "$(laws s3 ls | sed 's/^[^[:space:]]*[[:space:]]//')" -- "${cur}") )
+      fi
     fi
-  fi
-}
+  } && complete -F _laws laws
 
-S3() {
-  if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
-  # check sub commands
-  case "$1" in
-    list|ls) shift && List "$@" ;;
-    get|cat) shift && Get "$@" ;;
-    copy|cp) shift && Copy "$@" ;;
-          *) ReadMe; exit 1 ;;
-  esac
-}
-
-main() {
-  if [ "$#" = 0 ] || Contain "$*" "-h|help"; then ReadMe; exit 0; fi # display README
-  if Contain "$*" "-V|\-*version"; then echo "${PROGRAM_NAME} ${VERSION}"; exit 0; fi # display version
-  # check sub commands
-  case "$1" in
-    s3) shift && S3 "$@" ;;
-     *) ReadMe; exit 1 ;;
-  esac
-}
-
-main "$@"
+fi
