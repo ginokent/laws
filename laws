@@ -21,15 +21,15 @@ Lightweight shell script for Amazon Web Service Command Line Interface like AWS 
 
 ## TL;DR
 
-    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 ls
-    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 ls s3://your-bucket/prefix
-    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 cat s3://your-bucket/path/to/file
-    curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws | sh /dev/stdin s3 cp s3://your-bucket/path/to/file /path/to/file
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 ls
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 ls s3://your-bucket/prefix
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 cat s3://your-bucket/path/to/file
+    curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 cp s3://your-bucket/path/to/file /path/to/file
 
 
 ## Install:
 
-    sudo curl -sS https://raw.githubusercontent.com/djeeno/laws/release/laws -o /usr/local/bin/laws && sudo chmod +x $_
+    sudo curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws -o /usr/local/bin/laws && sudo chmod +x $_
 
 
 ## Usage:
@@ -391,7 +391,7 @@ ERROR
 
   Get() {
     # display README
-    if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+    if [ "$#" = 0 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
     SetRegion
     SetAccessKey
     BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
@@ -413,7 +413,7 @@ ERROR
 
   Concatenate() {
     # display README
-    if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+    if [ "$#" = 0 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
     for arg in "$@"; do
       Get "${arg}"
     done
@@ -421,7 +421,7 @@ ERROR
 
   Copy() {
     # display README
-    if [ "$#" -lt 2 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+    if [ "$#" -lt 2 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
     # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
       Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
@@ -438,7 +438,7 @@ ERROR
 
   S3() {
     # display README
-    if [ "$#" = 0 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
+    if [ "$#" = 0 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
     # check sub commands
     case "$1" in
        ls) shift && ListArgs "$@" ;;
@@ -450,7 +450,7 @@ ERROR
 
   main() {
     # display README
-    if [ "$#" = 0 ] || Contain "$*" "-h|help"; then ReadMe; exit 0; fi
+    if [ "$#" = 0 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
     # display version
     if Contain "$*" "-V|\-*version"; then echo "${PROGRAM_NAME} ${VERSION}"; exit 0; fi
     # check sub commands
