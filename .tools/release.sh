@@ -40,5 +40,4 @@ if [ "${VERSION}" != "${TAG_LATEST_VERSION}" ]; then
   printf "\e[1;32m%s\e[0m\n" "`LANG=C date` [INFO]  -- release ${VERSION} Passed ----------------"
 else
   printf "\e[1;33m%s\e[0m\n" "`LANG=C date` [WARN]  == ${VERSION} already exist ================"
-  printf "\e[1;32m%s\e[0m\n" "`LANG=C date` [INFO]  -- release ${VERSION} Passed ----------------"
 fi
