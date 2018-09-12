@@ -452,8 +452,14 @@ else
         COMPREPLY=( $(compgen -W "ls cat" -- "${cur}") )
       fi
     elif [ "${cword}" -eq 3 ]; then
-      if [ "${prev}" = "ls" ]; then
-        COMPREPLY=( $(compgen -W "$(laws s3 ls | sed 's/^[^[:space:]]*[[:space:]]//')" -- "${cur}") )
+      if [ "${prev}" = "ls" ] || [ "${prev}" = "cat" ]; then
+        if [ -z "${__laws_completion_previous_execution_time}" ] || [ $(($(date +%s)-${__laws_completion_previous_execution_time})) -gt 30 ]; then
+          __laws_completion_previous_execution_time=$(date +%s)
+          __laws_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+          COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )
+        else
+          COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )
+        fi
       fi
     fi
   } && complete -F _laws laws
