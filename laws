@@ -7,7 +7,7 @@ if [ -z "${PS1}" ]; then
 
   set -e
 
-  readonly VERSION="0.0.7"
+  readonly VERSION="0.0.8"
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
   ReadMe() {
