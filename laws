@@ -1,9 +1,10 @@
 #!/bin/sh
 # shellcheck disable=SC1117
 
-readonly VERSION="0.0.6"
-
 set -e
+
+readonly VERSION="0.0.6"
+readonly PROGRAM_NAME="$(basename "$0")"
 
 ReadMe() {
 cat <<"README" >/dev/stderr
@@ -85,14 +86,20 @@ This program relies heavily on "AWS Signature Version 4".
 README
 }
 
-LogWarn() (
-  contents=${1:?"[FATAL] LogWarn(): requires \"contents\" as \$1"}
-  printf "%s" "${contents}"  | sed "s/^/[WARN]  /" >/dev/stderr
+DateUTC() (
+  LANG=C TZ=UTC date +"%Y%m%dT%H%M%SZ"
 )
 
-LogError() (
-  contents=${1:?"[FATAL] LogError(): requires \"contents\" as \$1"}
-  printf "%s" "${contents}" | sed "s/^/[ERROR] /" >/dev/stderr
+Log() (
+  level=${1:?"[FATAL] Log(): requires \"level\" as \$1"}
+  contents=${2:?"[FATAL] Log(): requires \"contents\" as \$2"}
+  case "$level" in
+    f|F) contents_leveled="FATAL ${contents}" ;;
+    e|E) contents_leveled="ERROR ${contents}" ;;
+    w|W) contents_leveled="WARN  ${contents}" ;;
+      *) contents_leveled="INFO  ${contents}" ;;
+  esac
+  printf "%s" "${contents_leveled}" | sed "s/^/$(DateUTC) ${PROGRAM_NAME}[$$]: /" >/dev/stderr
 )
 
 Contain() (
@@ -107,7 +114,7 @@ Contain() (
 CheckDependency() (
   for cmd in "$@"; do
     if ! command -v "${cmd}" >/dev/null; then
-      LogError "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
+      Log E "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
       exit 1
     fi
   done
@@ -131,7 +138,7 @@ SetRegion() {
     if [ "${INI_region}" ]; then
       Region=${INI_region}
     else
-      LogWarn "SetRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
+      Log W "SetRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
     fi
   fi
 
@@ -160,7 +167,7 @@ Follow the steps below to register AWS region:
  
 ERROR
     )
-    LogError "${ErrorMessage}"
+    Log E "${ErrorMessage}"
     exit 1
   fi
 
@@ -181,7 +188,7 @@ SetAccessKey() {
       eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/credentials)"
       AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
       if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-        LogWarn "SetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
+        Log W "SetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
       fi
     fi
   fi
@@ -216,7 +223,7 @@ Follow the steps below to register your credentials:
  
 ERROR
     )
-    LogError "${ErrorMessage}"
+    Log E "${ErrorMessage}"
     exit 1
     fi
   fi
@@ -394,7 +401,7 @@ Copy() {
   if [ "$#" -le 1 ] || Contain "$*" "-h|--help|help"; then ReadMe; exit 0; fi
 
   if [ -r "$1" ] && [ ! -x "$2" ]; then
-    LogError "Copy(): cp ( src=S3 dest=local ) is unimplemented"
+    Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
     exit 1
   fi
 
@@ -418,7 +425,8 @@ S3() {
 }
 
 main() {
-  if [ "$#" = 0 ] || Contain "$*" "-h|help"; then ReadMe; exit 0; fi
+  if [ "$#" = 0 ] || Contain "$*" "-h|help"; then ReadMe; exit 0; fi # display README
+  if Contain "$*" "-V|\-*version"; then echo "${PROGRAM_NAME} ${VERSION}"; exit 0; fi # display version
   # check sub commands
   case "$1" in
     s3) shift && S3 "$@" ;;

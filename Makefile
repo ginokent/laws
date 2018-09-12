@@ -8,7 +8,7 @@ shellcheck:
 		&& { printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- shellcheck ./laws Passed ----------------"; } \
 		|| { printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == shellcheck ./laws Failed ================"; false; }
 
-test: test.sh shellcheck readme
+test: test.sh shellcheck readme version
 
 test.sh:
 	@./test/test.sh
@@ -19,3 +19,7 @@ readme:
 	@git diff ./README.md \
 		&& { printf   "\e[32m%s\e[0m\n" "`LANG=C date` [INFO]  -- git diff ./README.md Passed ----------------"; } \
 		|| { printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == git diff ./README.md Failed ================"; false; }
+
+version:
+	git tag
+	./laws --version
