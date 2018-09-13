@@ -113,7 +113,7 @@ README
       w|W) contents_leveled="WARN  ${contents}" ;;
         *) contents_leveled="INFO  ${contents}" ;;
     esac
-    printf "%s" "${contents_leveled}" | sed "s/^/$(DateUTC) ${PROGRAM_NAME}[$$]: /" >/dev/stderr
+    printf "%s\n" "${contents_leveled}" | sed "s/^/$(DateUTC) ${PROGRAM_NAME}[$$]: /" >/dev/stderr
   )
 
   Contain() (
@@ -527,10 +527,14 @@ elif [ "$(command -v bash)" ]; then
         if [ -z "${__laws_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_completion_previous_execution_time)) -gt 30 ]; then
           __laws_completion_previous_execution_time=$(date +%s)
           __laws_completion_previous_execution="$(bash laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
-          eval 'COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )'
-        else
-          eval 'COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )'
         fi
+        eval 'COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )'
+      elif [ "${prev}" = "cp" ]; then
+        if [ -z "${__laws_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_completion_previous_execution_time)) -gt 30 ]; then
+          __laws_completion_previous_execution_time=$(date +%s)
+          __laws_completion_previous_execution="$(bash laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+        fi
+        eval 'COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution} $(ls -d ./* ./.*)" -- "${cur}") )'
       fi
     fi
   }
