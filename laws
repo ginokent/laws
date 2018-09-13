@@ -533,6 +533,7 @@ elif [ "$(command -v bash)" ]; then
         fi
       fi
     fi
-  } && complete -F _laws laws
+  }
+  [ -z "$(command -v complete)" ] || complete -F _laws laws
 
 fi
