@@ -508,7 +508,7 @@ ERROR
 
   main "$@"
 
-else
+elif [ "$(command -v bash)" ]; then
 
   # Interactive: laws as completion
   # ref: https://blog.cybozu.io/entry/2016/09/26/080000
@@ -526,7 +526,7 @@ else
       if [ "${prev}" = "ls" ] || [ "${prev}" = "cat" ]; then
         if [ -z "${__laws_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_completion_previous_execution_time)) -gt 30 ]; then
           __laws_completion_previous_execution_time=$(date +%s)
-          __laws_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+          __laws_completion_previous_execution="$(bash laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
           COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )
         else
           COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )
