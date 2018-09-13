@@ -405,12 +405,14 @@ ERROR
       echo "${Response}" >/dev/stderr
       exit 1
     fi
+    # if empty file, remove
+    [ -s "${TmpFile}" ] || rm "${TmpFile}"
     cat "${TmpFile}"
   }
 
   ListArgs() {
     # if args contain "-h" or "--help" or "help" or ..., display README
-    if Contain "$*" "[[:space:]]*\-*h(elp)*[[:space:]]*"; then ReadMe; exit 0; fi
+    if Contain "$*" "^[[:space:]]*\-+h(elp)*[[:space:]]*|^[[:space:]]*help[[:space:]]*$"; then ReadMe; exit 0; fi
     if [ "$#" = 0 ]; then
       List
     else 
@@ -422,7 +424,7 @@ ERROR
 
   Concatenate() {
     # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" = 0 ] || Contain "$*" "[[:space:]]*\-*h(elp)*[[:space:]]*"; then ReadMe; exit 0; fi
+    if [ "$#" = 0 ] || Contain "$*" "^[[:space:]]*\-+h(elp)*[[:space:]]*|^[[:space:]]*help[[:space:]]*$"; then ReadMe; exit 0; fi
     for arg in "$@"; do
       Get "${arg}"
     done
@@ -430,7 +432,7 @@ ERROR
 
   Copy() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" -lt 2 ] || Contain "$*" "[[:space:]]*\-*h(elp)*[[:space:]]*"; then ReadMe; exit 0; fi
+    if [ "$#" -lt 2 ] || Contain "$*" "^[[:space:]]*\-+h(elp)*[[:space:]]*|^[[:space:]]*help[[:space:]]*$"; then ReadMe; exit 0; fi
     # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
       Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
