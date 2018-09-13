@@ -512,7 +512,7 @@ elif [ "$(command -v bash)" ]; then
 
   # Interactive: laws as completion
   # ref: https://blog.cybozu.io/entry/2016/09/26/080000
-  # shellcheck disable=SC2034,SC2039
+  # shellcheck disable=SC2016,SC2034,SC2039
   _laws() {
     local cur prev cword
     _get_comp_words_by_ref -n : cur prev cword
