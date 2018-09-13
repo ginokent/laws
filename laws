@@ -100,52 +100,58 @@ README
   return 0
   }
 
-  DateUTC() (
+  Common_Containing_MultiBytesChar() (
+    file=${1:?"[FATAL] Common_Containing_MultiBytesChar(): requires \"file\" as \$1"}
+    LANG=C grep -Ev '^[[:cntrl:][:print:]]*$' "${file}"
+  )
+
+  Common_Print_DateUTC() (
     LANG=C TZ=UTC date +"%Y%m%dT%H%M%SZ"
   )
 
-  Log() (
-    level=${1:?"[FATAL] Log(): requires \"level\" as \$1"}
-    contents=${2:?"[FATAL] Log(): requires \"contents\" as \$2"}
+  Common_Print_Log() (
+    level=${1:?"[FATAL] Common_Print_Log(): requires \"level\" as \$1"}
+    contents=${2:?"[FATAL] Common_Print_Log(): requires \"contents\" as \$2"}
     case "$level" in
       f|F) contents_leveled="FATAL ${contents}" ;;
       e|E) contents_leveled="ERROR ${contents}" ;;
       w|W) contents_leveled="WARN  ${contents}" ;;
         *) contents_leveled="INFO  ${contents}" ;;
     esac
-    printf "%s\n" "${contents_leveled}" | sed "s/^/$(DateUTC) ${PROGRAM_NAME}[$$]: /" >/dev/stderr
+    printf "%s\n" "${contents_leveled}" | sed "s/^/$(Common_Print_DateUTC) ${PROGRAM_NAME}[$$]: /" >/dev/stderr
   )
 
-  Contain() (
-    contents="$1"
-    pattern="${2:?"[FATAL] Contain(): requires \"pattern\" as \$2"}"
+  Common_Containing_Regex() (
+    pattern="${1:?"[FATAL] Common_Containing_Regex(): requires \"pattern\" as \$2"}"
+    contents="$2"
     if echo "${contents}" | grep -Eq -- "${pattern}"; then
       return 0
     fi
     return 1
   )
 
-  ContainHelp() (
-    Contain "$*" "^[[:space:]]*\-+h(elp)?[[:space:]]*|[[:space:]]+\-+h(elp)?[[:space:]]*$|^[[:space:]]*help[[:space:]]*$"
+  Common_Containing_HelpOption() (
+    Common_Containing_Regex "^[[:space:]]*\-+h(elp)?[[:space:]]*|[[:space:]]+\-+h(elp)?[[:space:]]*$|^[[:space:]]*help[[:space:]]*$" "$*"
   )
 
-  CheckDependency() (
+  Common_Check_Dependency() (
     for cmd in "$@"; do
       if ! command -v "${cmd}" >/dev/null; then
-        Log E "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
+        Common_Print_Log E "Common_Check_Dependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
         exit 1
       fi
     done
-  ); CheckDependency '[' cat curl date grep od openssl printf sed tr
+  ); Common_Check_Dependency '[' cat curl date grep od openssl printf sed tr
 
-  ParseINIFromStdinToStdout() (
+  Common_Print_ParsedINI() (
     # For the setting in the ini file, output commands which define them as shell variables prefixed "INI_".
-    iniSectionPattern="${1:?"[FATAL] ParseINIFromStdinToStdout(): requires \"iniSectionPattern\" as \$1"}"
-    sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/" /dev/stdin \
+    iniSectionPattern="${1:?"[FATAL] Common_Print_ParsedINI(): requires \"iniSectionPattern\" as \$1"}"
+    file=${2:?"[FATAL] Common_Print_ParsedINI(): requires \"file\" as \$2"}
+    sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/" "${file}" \
       | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
   )
 
-  GetRegion() (
+  Laws_Print_Region() (
     # 1. already declared
     if [ -z "${region}" ] && [ "${Region}" ]; then
       region="${Region}"
@@ -159,11 +165,11 @@ README
     # 3. config file: ~/.aws/config
     if [ -z "${region}" ] && [ -r ~/.aws/config ]; then
       INI_region=""
-      eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/config)"
+      eval "$(Common_Print_ParsedINI "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
       if [ "${INI_region}" ]; then
         region="${INI_region}"
       else
-        Log W "GetRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
+        Common_Print_Log W "Laws_Print_Region(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
       fi
     fi
 
@@ -176,7 +182,7 @@ README
     if [ -z "${region}" ]; then
       ErrorMessage=$(cat <<"ERROR"
 
-GetRegion(): Not specified AWS Region
+Laws_Print_Region(): Not specified AWS Region
 Follow the steps below to register AWS region:
 
 1. Save config as: ~/.aws/config
@@ -192,7 +198,7 @@ Follow the steps below to register AWS region:
 ;
 ERROR
       )
-      Log E "${ErrorMessage}"
+      Common_Print_Log E "${ErrorMessage}"
       exit 1
     fi
 
@@ -200,9 +206,9 @@ ERROR
     echo "${region}"
   )
 
-  APIEndpoint() (
-    region="${1:?"[FATAL] APIEndpoint(): requires \"region\" as \$1"}"
-    service="${2:?"[FATAL] APIEndpoint(): requires \"service\" as \$2"}"
+  Print_APIEndpoint() (
+    service="${1:?"[FATAL] Print_APIEndpoint(): requires \"service\" as \$1"}"
+    region="${2:?"[FATAL] Print_APIEndpoint(): requires \"region\" as \$2"}"
     case "${service}" in
       s3)
         if [ "${region}" = us-east-1 ]; then
@@ -212,7 +218,7 @@ ERROR
         fi
         ;;
       *)
-        Log E "${service} not support"
+        Common_Print_Log E "${service} not support"
         return 1
         ;;
     esac
@@ -230,10 +236,10 @@ ERROR
     if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
       if [ -r ~/.aws/credentials ]; then
         INI_aws_access_key_id="" INI_aws_secret_access_key=""
-        eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/credentials)"
+        eval "$(Common_Print_ParsedINI "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
         AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
         if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-          Log W "SetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
+          Common_Print_Log W "SetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
         fi
       fi
     fi
@@ -268,7 +274,7 @@ Follow the steps below to register your credentials:
 ;
 ERROR
       )
-      Log E "${ErrorMessage}"
+      Common_Print_Log E "${ErrorMessage}"
       exit 1
       fi
     fi
@@ -375,26 +381,26 @@ ERROR
     # check sub commands
     case "$1" in
       "") # when $# = 0
-        Region=$(GetRegion)
-        [ "${APIEndpoint}" ] || APIEndpoint=$(APIEndpoint "${Region}" s3)
+        Region=$(Laws_Print_Region)
+        [ "${APIEndpoint}" ] || APIEndpoint=$(Print_APIEndpoint s3 "${Region}")
         # If there is no argument, list the buckets.
         SetAccessKey
         RequestPath="/" CanonicalQueryString="" Payload=""
         SetAWSSignatureV4ForS3Get
         Response=$(CallAPIS3Get)
-        if Contain "${Response}" "</Error>"; then
+        if Common_Containing_Regex "</Error>" "${Response}"; then
           echo "${Response}" >/dev/stderr
           exit 1
         fi
         echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
         ;;
       *)
-        Region=$(GetRegion)
-        [ "${APIEndpoint}" ] || APIEndpoint=$(APIEndpoint "${Region}" s3)
+        Region=$(Laws_Print_Region)
+        [ "${APIEndpoint}" ] || APIEndpoint=$(Print_APIEndpoint s3 "${Region}")
         # If there is an argument, list the objects.
         SetAccessKey
         RequestPath="/$(ExtractHost "$1")" Payload=""
-        if [ -z "${MaxKeys}" ] || Contain "${MaxKeys}" "[^0-9]"; then MaxKeys=1000; fi
+        if [ -z "${MaxKeys}" ] || Common_Containing_Regex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
         Prefix=$(UriEncode "$(ExtractPath "$1")")
         CanonicalQueryString="$(
           [ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&"
@@ -404,8 +410,8 @@ ERROR
         SetAWSSignatureV4ForS3Get
         Response=$(CallAPIS3Get)
         # check error
-        if Contain "${Response}" "</Error>"; then
-          if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
+        if Common_Containing_Regex "</Error>" "${Response}"; then
+          if Common_Containing_Regex "<Code>PermanentRedirect</Code>" "${Response}"; then
             APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
             List "$@"
           fi
@@ -415,7 +421,7 @@ ERROR
         # normal
         BucketName=$(ExtractHost "$1")
         ExtractPattern "${Response}" "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"${BucketName}/"'\1|g'
-        if Contain "${Response}" "<NextContinuationToken>[^<]*"; then
+        if Common_Containing_Regex "<NextContinuationToken>[^<]*" "${Response}"; then
           ContinuationToken=$(UriEncode "$(ExtractPattern "${Response}" "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
           List "$@"
         fi
@@ -424,7 +430,7 @@ ERROR
   }
 
   Get() {
-    Region=$(GetRegion)
+    Region=$(Laws_Print_Region)
     SetAccessKey
     RequestPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
     CanonicalQueryString="" Payload=""
@@ -432,8 +438,8 @@ ERROR
     TmpFile=$(mktemp)
     CallAPIS3Get > "${TmpFile}"
     Response="$(cat "${TmpFile}")"
-    if Contain "${Response}" "</Error>"; then
-      if Contain "${Response}" "<Code>PermanentRedirect</Code>"; then
+    if Common_Containing_Regex "</Error>" "${Response}"; then
+      if Common_Containing_Regex "<Code>PermanentRedirect</Code>" "${Response}"; then
         APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
         Get "$@"
       fi
@@ -447,7 +453,7 @@ ERROR
 
   ListArgs() {
     # if args contain "-h" or "--help" or "help" or ..., display README
-    if ContainHelp "$*"; then ReadMe; fi
+    if Common_Containing_HelpOption "$*"; then ReadMe; fi
     if [ "$#" = 0 ]; then
       List
     else 
@@ -459,7 +465,7 @@ ERROR
 
   Concatenate() {
     # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" = 0 ] || ContainHelp "$*"; then ReadMe; fi
+    if [ "$#" = 0 ] || Common_Containing_HelpOption "$*"; then ReadMe; fi
     for arg in "$@"; do
       Get "${arg}"
     done
@@ -467,10 +473,10 @@ ERROR
 
   Copy() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" -lt 2 ] || ContainHelp "$*"; then ReadMe; fi
+    if [ "$#" -lt 2 ] || Common_Containing_HelpOption "$*"; then ReadMe; fi
     # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
-      Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
+      Common_Print_Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
       exit 1
     fi
     # copy local to s3
@@ -494,7 +500,7 @@ ERROR
 
   main() {
     # display version
-    if Contain "$*" "-V|\-*version"; then
+    if Common_Containing_Regex "-V|\-*version" "$*"; then
       echo "${PROGRAM_NAME} ${VERSION}"
       exit 0
     fi
