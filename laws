@@ -299,7 +299,7 @@ ERROR
 
   CanonicalRequest() {
     printf "%s\n" "${HTTPMethod}" # GET
-    printf "%s\n" "${BucketPath}" # /your-backet
+    printf "%s\n" "${RequestPath}" # /your-backet
     printf "%s\n" "${CanonicalQueryString}" # list-type=2&prefix=%2Fpath%2Fto%2Ffile
     printf "%s\n" "$(CanonicalHeader)"
     printf "%s\n" "" # blank lines are required
@@ -334,7 +334,7 @@ ERROR
 
   CallAPIS3Get() {
     {
-      printf "%s" "curl -kLsS 'https://${APIEndpoint}${BucketPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")'"
+      printf "%s" "curl -kLsS 'https://${APIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")'"
       printf "%s" " -H 'Host: ${APIEndpoint}'"
       printf "%s" " -H 'x-amz-content-sha256: ${HashedPayload}'"
       printf "%s" " -H 'x-amz-date: ${DateISO8601}'"
@@ -350,7 +350,7 @@ ERROR
         SetRegion
         # If there is no argument, list the buckets.
         SetAccessKey
-        BucketPath="/" CanonicalQueryString="" Payload=""
+        RequestPath="/" CanonicalQueryString="" Payload=""
         SetAWSSignatureV4ForS3Get
         Response=$(CallAPIS3Get)
         if Contain "${Response}" "</Error>"; then
@@ -363,8 +363,7 @@ ERROR
         SetRegion
         # If there is an argument, list the objects.
         SetAccessKey
-        BucketName=$(ExtractHost "$1")
-        BucketPath="/${BucketName}" Payload=""
+        RequestPath="/$(ExtractHost "$1")" Payload=""
         if [ -z "${MaxKeys}" ] || Contain "${MaxKeys}" "[^0-9]"; then MaxKeys=1000; fi
         Prefix=$(UriEncode "$(ExtractPath "$1")")
         CanonicalQueryString="$(
@@ -384,6 +383,7 @@ ERROR
           exit 1
         fi
         # normal
+        BucketName=$(ExtractHost "$1")
         ExtractPattern "${Response}" "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"${BucketName}/"'\1|g'
         if Contain "${Response}" "<NextContinuationToken>[^<]*"; then
           ContinuationToken=$(UriEncode "$(ExtractPattern "${Response}" "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
@@ -396,7 +396,7 @@ ERROR
   Get() {
     SetRegion
     SetAccessKey
-    BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
+    RequestPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
     CanonicalQueryString="" Payload=""
     SetAWSSignatureV4ForS3Get
     TmpFile=$(mktemp)
