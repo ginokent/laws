@@ -517,19 +517,19 @@ elif [ "$(command -v bash)" ]; then
     local cur prev cword
     _get_comp_words_by_ref -n : cur prev cword
     if [ "${cword}" -eq 1 ]; then
-      COMPREPLY=( $(compgen -W "s3" -- "${cur}") )
+      eval 'COMPREPLY=( $(compgen -W "s3" -- "${cur}") )'
     elif [ "${cword}" -eq 2 ]; then
       if [ "${prev}" = "s3" ]; then
-        COMPREPLY=( $(compgen -W "ls cat cp" -- "${cur}") )
+        eval 'COMPREPLY=( $(compgen -W "ls cat cp" -- "${cur}") )'
       fi
     elif [ "${cword}" -eq 3 ]; then
       if [ "${prev}" = "ls" ] || [ "${prev}" = "cat" ]; then
         if [ -z "${__laws_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_completion_previous_execution_time)) -gt 30 ]; then
           __laws_completion_previous_execution_time=$(date +%s)
           __laws_completion_previous_execution="$(bash laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
-          COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )
+          eval 'COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )'
         else
-          COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )
+          eval 'COMPREPLY=( $(compgen -W "${__laws_completion_previous_execution}" -- "${cur}") )'
         fi
       fi
     fi
