@@ -97,6 +97,7 @@ This program relies heavily on "AWS Signature Version 4".
     https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
 ;
 README
+  return 0
   }
 
   DateUTC() (
@@ -416,7 +417,7 @@ ERROR
 
   ListArgs() {
     # if args contain "-h" or "--help" or "help" or ..., display README
-    if ContainHelp "$*"; then ReadMe; exit 0; fi
+    if ContainHelp "$*"; then ReadMe; fi
     if [ "$#" = 0 ]; then
       List
     else 
@@ -428,7 +429,7 @@ ERROR
 
   Concatenate() {
     # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" = 0 ] || ContainHelp "$*"; then ReadMe; exit 0; fi
+    if [ "$#" = 0 ] || ContainHelp "$*"; then ReadMe; fi
     for arg in "$@"; do
       Get "${arg}"
     done
@@ -436,7 +437,7 @@ ERROR
 
   Copy() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" -lt 2 ] || ContainHelp "$*"; then ReadMe; exit 0; fi
+    if [ "$#" -lt 2 ] || ContainHelp "$*"; then ReadMe; fi
     # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
       Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
@@ -457,17 +458,21 @@ ERROR
        ls) shift && ListArgs "$@" ;;
       cat) shift && Concatenate "$@" ;;
        cp) shift && Copy "$@" ;;
-        *) ReadMe; exit 1 ;;
+        *) ReadMe ;;
     esac
   }
 
   main() {
     # display version
-    if Contain "$*" "-V|\-*version"; then echo "${PROGRAM_NAME} ${VERSION}"; exit 0; fi
+    if Contain "$*" "-V|\-*version"; then
+      echo "${PROGRAM_NAME} ${VERSION}"
+      exit 0
+    fi
+
     # check sub commands
     case "$1" in
       s3) shift && S3 "$@" ;;
-       *) ReadMe; exit 1 ;;
+       *) ReadMe ;;
     esac
   }
 
