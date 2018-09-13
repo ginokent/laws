@@ -7,7 +7,7 @@ if ! echo "$-" | grep -q i; then
 
   set -e
 
-  readonly VERSION="0.0.8"
+  readonly VERSION="0.0.9"
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
   ReadMe() {
