@@ -10,7 +10,7 @@ if ! echo "$-" | grep -q i; then
   readonly VERSION="0.0.9"
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
-  ReadMe() {
+  Laws_Print_ReadMe() (
   cat <<"README" >/dev/stderr
 
 laws
@@ -98,7 +98,7 @@ This program relies heavily on "AWS Signature Version 4".
 ;
 README
   return 0
-  }
+  )
 
   Common_Containing_MultiBytesChar() (
     file=${1:?"[FATAL] Common_Containing_MultiBytesChar(): requires \"file\" as \$1"}
@@ -224,7 +224,7 @@ ERROR
     esac
   )
 
-  SetAccessKey() {
+  Laws_Set_AccessKey() {
     # get credentials from environment variables
     if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
       if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
@@ -239,7 +239,7 @@ ERROR
         eval "$(Common_Print_ParsedINI "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
         AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
         if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-          Common_Print_Log W "SetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
+          Common_Print_Log W "Laws_Set_AccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
         fi
       fi
     fi
@@ -256,7 +256,7 @@ ERROR
       if [ -z "${STSToken}" ]; then
       ErrorMessage=$(cat <<"ERROR"
 
-SetAccessKey(): Failed to connect http://169.254.169.254/
+Laws_Set_AccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
 
 1. Save credentials file as: ~/.aws/credentials
@@ -280,40 +280,40 @@ ERROR
     fi
   }
 
-  Hex() {
+  Common_Print_Hex() (
     printf "%s" "$1" | od -v -A n -t x1 | tr -d '[:blank:]|\n'
-  }
+  )
 
-  HMAC() {
+  Common_Print_HMAC() (
     printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
-  }
+  )
 
-  SHA256Hash() {
+  Common_Print_SHA256Hash() (
     printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
-  }
+  )
 
-  TrimSchemeAndSlashSlash() {
+  Common_Print_SchemeAndSlashSlashRemoved() (
     printf "%s" "$1" | sed 's|^[^:]*://||'
-  }
+  )
 
-  ExtractPattern() (
-    contents=${1:?"[FATAL] ExtractPattern(): requires \"contents\" as \$1"}
-    pattern=${2:?"[FATAL] ExtractPattern(): requires \"pattern\" as \$2"}
+  Common_Print_ExtractedByPattern() (
+    contents=${1:?"[FATAL] Common_Print_ExtractedByPattern(): requires \"contents\" as \$1"}
+    pattern=${2:?"[FATAL] Common_Print_ExtractedByPattern(): requires \"pattern\" as \$2"}
     echo "${contents}" | grep -Eo "${pattern}"
   )
 
-  ExtractXMLValue() (
-    contents=${1:?"[FATAL] ExtractPattern(): requires \"contents\" as \$1"}
-    tagName=${2:?"[FATAL] ExtractXMLValue(): requires \"tagName\" as \$2"}
+  Common_Print_ExtractedXMLValue() (
+    contents=${1:?"[FATAL] Common_Print_ExtractedXMLValue(): requires \"contents\" as \$1"}
+    tagName=${2:?"[FATAL] Common_Print_ExtractedXMLValue(): requires \"tagName\" as \$2"}
     echo "${contents}" | grep -Eo "<${tagName}>.*</${tagName}>" | sed "s|</*${tagName}>||g"
   )
 
-  ExtractHost() {
-    TrimSchemeAndSlashSlash "$1" | sed 's|/.*||'
+  Common_Print_ExtractedHTTPHost() {
+    Common_Print_SchemeAndSlashSlashRemoved "$1" | sed 's|/.*||'
   }
 
-  ExtractPath() {
-    TrimSchemeAndSlashSlash "$1" | grep '/' | sed 's|^[^/]*/||'
+  Common_Print_ExtractedHTTPPath() {
+    Common_Print_SchemeAndSlashSlashRemoved "$1" | grep '/' | sed 's|^[^/]*/||'
   }
 
   UriEncodeWithoutSlash() {
@@ -347,16 +347,26 @@ ERROR
     [ "${APIEndpoint}" ] || APIEndpoint=$([ "${Region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${Region}.amazonaws.com")
     DateYMD=$(date +'%Y%m%d')
     DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
-    HashedPayload=$(SHA256Hash "${Payload}")
+    HashedPayload=$(Common_Print_SHA256Hash "${Payload}")
     CanonicalRequest=$(CanonicalRequest)
     StringtoSign=$(
       printf "%s\n" "AWS4-HMAC-SHA256"
       printf "%s\n" "${DateISO8601}"
       printf "%s\n" "${DateYMD}/${Region}/s3/aws4_request"
-      printf "%s\n" "$(SHA256Hash "${CanonicalRequest}")"
+      printf "%s\n" "$(Common_Print_SHA256Hash "${CanonicalRequest}")"
     )
     Signature=$(
-      HMAC "$(HMAC "$(HMAC "$(HMAC "$(HMAC "$(Hex "AWS4${SecretAccessKey}")" "${DateYMD}")" "${Region}")" "s3")" "aws4_request")" "${StringtoSign}"
+      Common_Print_HMAC "$(
+        Common_Print_HMAC "$(
+          Common_Print_HMAC "$(
+            Common_Print_HMAC "$(
+              Common_Print_HMAC "$(
+                Common_Print_Hex "AWS4${SecretAccessKey}"
+              )" "${DateYMD}"
+            )" "${Region}"
+          )" "s3"
+        )" "aws4_request"
+      )" "${StringtoSign}"
     )
     Authorization=$(
       printf "%s" "AWS4-HMAC-SHA256"
@@ -384,7 +394,7 @@ ERROR
         Region=$(Laws_Print_Region)
         [ "${APIEndpoint}" ] || APIEndpoint=$(Print_APIEndpoint s3 "${Region}")
         # If there is no argument, list the buckets.
-        SetAccessKey
+        Laws_Set_AccessKey
         RequestPath="/" CanonicalQueryString="" Payload=""
         SetAWSSignatureV4ForS3Get
         Response=$(CallAPIS3Get)
@@ -398,10 +408,10 @@ ERROR
         Region=$(Laws_Print_Region)
         [ "${APIEndpoint}" ] || APIEndpoint=$(Print_APIEndpoint s3 "${Region}")
         # If there is an argument, list the objects.
-        SetAccessKey
-        RequestPath="/$(ExtractHost "$1")" Payload=""
+        Laws_Set_AccessKey
+        RequestPath="/$(Common_Print_ExtractedHTTPHost "$1")" Payload=""
         if [ -z "${MaxKeys}" ] || Common_Containing_Regex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
-        Prefix=$(UriEncode "$(ExtractPath "$1")")
+        Prefix=$(UriEncode "$(Common_Print_ExtractedHTTPPath "$1")")
         CanonicalQueryString="$(
           [ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&"
         )list-type=2&max-keys=${MaxKeys}$(
@@ -412,17 +422,17 @@ ERROR
         # check error
         if Common_Containing_Regex "</Error>" "${Response}"; then
           if Common_Containing_Regex "<Code>PermanentRedirect</Code>" "${Response}"; then
-            APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
+            APIEndpoint=$(Common_Print_ExtractedXMLValue "${Response}" "Endpoint")
             List "$@"
           fi
           echo "${Response}" >/dev/stderr
           exit 1
         fi
         # normal
-        BucketName=$(ExtractHost "$1")
-        ExtractPattern "${Response}" "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"${BucketName}/"'\1|g'
+        BucketName=$(Common_Print_ExtractedHTTPHost "$1")
+        Common_Print_ExtractedByPattern "${Response}" "[^>]*</Key><LastModified>[^<]*" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"${BucketName}/"'\1|g'
         if Common_Containing_Regex "<NextContinuationToken>[^<]*" "${Response}"; then
-          ContinuationToken=$(UriEncode "$(ExtractPattern "${Response}" "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
+          ContinuationToken=$(UriEncode "$(Common_Print_ExtractedByPattern "${Response}" "<NextContinuationToken>[^<]*" | sed 's|.*>||g')")
           List "$@"
         fi
         ;;
@@ -431,8 +441,8 @@ ERROR
 
   Get() {
     Region=$(Laws_Print_Region)
-    SetAccessKey
-    RequestPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
+    Laws_Set_AccessKey
+    RequestPath="/$(UriEncodeWithoutSlash "$(Common_Print_SchemeAndSlashSlashRemoved "$1")")"
     CanonicalQueryString="" Payload=""
     SetAWSSignatureV4ForS3Get
     TmpFile=$(mktemp)
@@ -440,7 +450,7 @@ ERROR
     Response="$(cat "${TmpFile}")"
     if Common_Containing_Regex "</Error>" "${Response}"; then
       if Common_Containing_Regex "<Code>PermanentRedirect</Code>" "${Response}"; then
-        APIEndpoint=$(ExtractXMLValue "${Response}" "Endpoint")
+        APIEndpoint=$(Common_Print_ExtractedXMLValue "${Response}" "Endpoint")
         Get "$@"
       fi
       echo "${Response}" >/dev/stderr
@@ -453,7 +463,7 @@ ERROR
 
   ListArgs() {
     # if args contain "-h" or "--help" or "help" or ..., display README
-    if Common_Containing_HelpOption "$*"; then ReadMe; fi
+    if Common_Containing_HelpOption "$*"; then Laws_Print_ReadMe; fi
     if [ "$#" = 0 ]; then
       List
     else 
@@ -465,7 +475,7 @@ ERROR
 
   Concatenate() {
     # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" = 0 ] || Common_Containing_HelpOption "$*"; then ReadMe; fi
+    if [ "$#" = 0 ] || Common_Containing_HelpOption "$*"; then Laws_Print_ReadMe; fi
     for arg in "$@"; do
       Get "${arg}"
     done
@@ -473,7 +483,7 @@ ERROR
 
   Copy() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" -lt 2 ] || Common_Containing_HelpOption "$*"; then ReadMe; fi
+    if [ "$#" -lt 2 ] || Common_Containing_HelpOption "$*"; then Laws_Print_ReadMe; fi
     # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
       Common_Print_Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
@@ -494,7 +504,7 @@ ERROR
        ls) shift && ListArgs "$@" ;;
       cat) shift && Concatenate "$@" ;;
        cp) shift && Copy "$@" ;;
-        *) ReadMe ;;
+        *) Laws_Print_ReadMe ;;
     esac
   }
 
@@ -508,7 +518,7 @@ ERROR
     # check sub commands
     case "$1" in
       s3) shift && S3 "$@" ;;
-       *) ReadMe ;;
+       *) Laws_Print_ReadMe ;;
     esac
   }
 
