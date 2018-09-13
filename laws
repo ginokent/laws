@@ -145,31 +145,38 @@ README
       | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
   )
 
-  SetRegion() {
-    # 1. environment variable: AWS_REGION
-    if [ -z "${Region}" ] && [ "${AWS_REGION}" ]; then Region=${AWS_REGION}; fi
+  GetRegion() (
+    # 1. already declared
+    if [ -z "${region}" ] && [ "${Region}" ]; then
+      region="${Region}"
+    fi
 
-    # 2. config file: ~/.aws/config
-    if [ -z "${Region}" ] && [ -r ~/.aws/config ]; then
+    # 2. environment variable: AWS_REGION
+    if [ -z "${region}" ] && [ "${AWS_REGION}" ]; then
+      region="${AWS_REGION}"
+    fi
+
+    # 3. config file: ~/.aws/config
+    if [ -z "${region}" ] && [ -r ~/.aws/config ]; then
       INI_region=""
       eval "$(ParseINIFromStdinToStdout "\(profile \)*${AWS_PROFILE:-default}" < ~/.aws/config)"
       if [ "${INI_region}" ]; then
-        Region=${INI_region}
+        region="${INI_region}"
       else
-        Log W "SetRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
+        Log W "GetRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
       fi
     fi
 
-    # 3. meta-data
-    if [ -z "${Region}" ]; then
-      Region=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' ||:)
+    # 4. meta-data
+    if [ -z "${region}" ]; then
+      region=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' ||:)
     fi
 
     # check Region
-    if [ -z "${Region}" ]; then
+    if [ -z "${region}" ]; then
       ErrorMessage=$(cat <<"ERROR"
 
-SetRegion(): Not specified AWS Region
+GetRegion(): Not specified AWS Region
 Follow the steps below to register AWS region:
 
 1. Save config as: ~/.aws/config
@@ -188,7 +195,28 @@ ERROR
       Log E "${ErrorMessage}"
       exit 1
     fi
-  }
+
+    # return
+    echo "${region}"
+  )
+
+  APIEndpoint() (
+    region="${1:?"[FATAL] APIEndpoint(): requires \"region\" as \$1"}"
+    service="${2:?"[FATAL] APIEndpoint(): requires \"service\" as \$2"}"
+    case "${service}" in
+      s3)
+        if [ "${region}" = us-east-1 ]; then
+          echo "s3.amazonaws.com"
+        else
+          echo "s3-${region}.amazonaws.com"
+        fi
+        ;;
+      *)
+        Log E "${service} not support"
+        return 1
+        ;;
+    esac
+  )
 
   SetAccessKey() {
     # get credentials from environment variables
@@ -347,7 +375,8 @@ ERROR
     # check sub commands
     case "$1" in
       "") # when $# = 0
-        SetRegion
+        Region=$(GetRegion)
+        [ "${APIEndpoint}" ] || APIEndpoint=$(APIEndpoint "${Region}" s3)
         # If there is no argument, list the buckets.
         SetAccessKey
         RequestPath="/" CanonicalQueryString="" Payload=""
@@ -360,7 +389,8 @@ ERROR
         echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
         ;;
       *)
-        SetRegion
+        Region=$(GetRegion)
+        [ "${APIEndpoint}" ] || APIEndpoint=$(APIEndpoint "${Region}" s3)
         # If there is an argument, list the objects.
         SetAccessKey
         RequestPath="/$(ExtractHost "$1")" Payload=""
@@ -394,7 +424,7 @@ ERROR
   }
 
   Get() {
-    SetRegion
+    Region=$(GetRegion)
     SetAccessKey
     RequestPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
     CanonicalQueryString="" Payload=""
