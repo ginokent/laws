@@ -338,17 +338,6 @@ ERROR
     } | sh
   }
 
-  ListArgs() {
-    # display README
-    if [ "$#" = 0 ]; then
-      List
-    else 
-      for arg in "$@"; do
-        List "${arg}"
-      done
-    fi
-  }
-
   List() {
     # check sub commands
     case "$1" in
@@ -400,8 +389,6 @@ ERROR
   }
 
   Get() {
-    # display README
-    if [ "$#" = 0 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
     SetRegion
     SetAccessKey
     BucketPath="/$(UriEncodeWithoutSlash "$(TrimSchemeAndSlashSlash "$1")")"
@@ -421,17 +408,29 @@ ERROR
     cat "${TmpFile}"
   }
 
+  ListArgs() {
+    # if args contain "-h" or "--help" or "help" or ..., display README
+    if Contain "$*" "[[:space:]]*\-*h(elp)*[[:space:]]*"; then ReadMe; exit 0; fi
+    if [ "$#" = 0 ]; then
+      List
+    else 
+      for arg in "$@"; do
+        List "${arg}"
+      done
+    fi
+  }
+
   Concatenate() {
-    # display README
-    if [ "$#" = 0 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
+    # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
+    if [ "$#" = 0 ] || Contain "$*" "[[:space:]]*\-*h(elp)*[[:space:]]*"; then ReadMe; exit 0; fi
     for arg in "$@"; do
       Get "${arg}"
     done
   }
 
   Copy() {
-    # display README
-    if [ "$#" -lt 2 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
+    # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
+    if [ "$#" -lt 2 ] || Contain "$*" "[[:space:]]*\-*h(elp)*[[:space:]]*"; then ReadMe; exit 0; fi
     # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
       Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
@@ -447,20 +446,16 @@ ERROR
   }
 
   S3() {
-    # display README
-    if [ "$#" = 0 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
     # check sub commands
     case "$1" in
        ls) shift && ListArgs "$@" ;;
       cat) shift && Concatenate "$@" ;;
        cp) shift && Copy "$@" ;;
-            *) ReadMe; exit 1 ;;
+        *) ReadMe; exit 1 ;;
     esac
   }
 
   main() {
-    # display README
-    if [ "$#" = 0 ] || Contain "$*" " -h| --help| help"; then ReadMe; exit 0; fi
     # display version
     if Contain "$*" "-V|\-*version"; then echo "${PROGRAM_NAME} ${VERSION}"; exit 0; fi
     # check sub commands
