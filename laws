@@ -7,7 +7,7 @@ if ! echo "$-" | grep -q i; then
 
   set -e
 
-  readonly VERSION="0.0.9"
+  readonly VERSION="0.0.10"
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
   Laws_Stdout_ReadMe() (
@@ -107,7 +107,7 @@ README
   Common_Stdout_Log() (
     level=${1:?"[FATAL] Common_Stdout_Log(): requires \"level\" as \$1"}
     logMessages=${2:?"[FATAL] Common_Stdout_Log(): requires \"logMessages\" as \$2"}
-    case "$level" in
+    case "${level}" in
       f|F) logMessagesLeveled="FATAL ${logMessages}" ;;
       e|E) logMessagesLeveled="ERROR ${logMessages}" ;;
       w|W) logMessagesLeveled="WARN  ${logMessages}" ;;
@@ -228,13 +228,10 @@ README
   }
 
   Laws_Stdout_Region() (
-    # 1. already declared
-    [ -z "${Region}" ] || { echo "${Region}"; return 0; }
-
-    # 2. environment variable: AWS_REGION
+    # 1. environment variable: AWS_REGION
     [ -z "${AWS_REGION}" ] || { echo "${AWS_REGION}"; return 0; }
 
-    # 3. config file: ~/.aws/config
+    # 2. config file: ~/.aws/config
     if [ -r ~/.aws/config ]; then
       INI_region=""
       eval "$(Common_Stdout_ParsedINI "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
@@ -246,7 +243,7 @@ README
       fi
     fi
 
-    # 4. meta-data
+    # 3. meta-data
     if ! curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; then
       Common_Stdout_Log E "$(cat <<"ERROR"
 
@@ -275,17 +272,8 @@ ERROR
     service="${1:?"[FATAL] Laws_Stdout_APIEndpoint(): requires \"service\" as \$1"}"
     region="${2:?"[FATAL] Laws_Stdout_APIEndpoint(): requires \"region\" as \$2"}"
     case "${service}" in
-      s3)
-        if [ "${region}" = us-east-1 ]; then
-          echo "s3.amazonaws.com"
-        else
-          echo "s3-${region}.amazonaws.com"
-        fi
-        ;;
-      *)
-        Common_Stdout_Log E "${service} not support"
-        return 1
-        ;;
+      s3) [ "${region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${region}.amazonaws.com" ;;
+       *) Common_Stdout_Log E "${service} not support"; return 1 ;;
     esac
   )
 
@@ -364,7 +352,7 @@ ERROR
   Laws_Stdout_StringtoSign() {
     printf "%s\n" "AWS4-HMAC-SHA256"
     printf "%s\n" "${DateISO8601}"
-    printf "%s\n" "${DateYMD}/${Region}/s3/aws4_request"
+    printf "%s\n" "${DateYMD}/$(Laws_Stdout_Region)/s3/aws4_request"
     printf "%s\n" "$(Common_Stdout_SHA256Hash "$(Laws_Stdout_CanonicalRequest)")"
   }
 
@@ -376,7 +364,7 @@ ERROR
             Common_Stdout_HMAC "$(
               Common_Stdout_Hex "AWS4${SecretAccessKey}"
             )" "${DateYMD}"
-          )" "${Region}"
+          )" "$(Laws_Stdout_Region)"
         )" "s3"
       )" "aws4_request"
     )" "$(Laws_Stdout_StringtoSign)"
@@ -384,7 +372,7 @@ ERROR
 
   Laws_Stdout_Authorization() {
     printf "%s" "AWS4-HMAC-SHA256"
-    printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
+    printf "%s" " Credential=${AccessKeyId}/${DateYMD}/$(Laws_Stdout_Region)/s3/aws4_request,"
     printf "%s" " SignedHeaders=$(Laws_Stdout_CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
     printf "%s" " Signature=$(Laws_Stdout_Signature)"
   }
@@ -401,15 +389,10 @@ ERROR
     # check sub commands
     case "$1" in
       "") # when $# = 0
-        # If there is no argument, list the buckets.
-        Laws_Set_AccessKey
-        RequestPath="/" CanonicalQueryString="" Payload=""
-        HTTPMethod="GET"
-        Region=$(Laws_Stdout_Region)
-        APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "${Region}")
-        DateYMD=$(date +'%Y%m%d')
-        DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
+        RequestPath="/"
+        CanonicalQueryString=""
         Response=$(CallAPIS3Get)
+        # check error
         if Common_Containing_Regex "</Error>" "${Response}"; then
           echo "${Response}" >/dev/stderr
           exit 1
@@ -417,9 +400,7 @@ ERROR
         echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
         ;;
       *)
-        # If there is an argument, list the objects.
-        Laws_Set_AccessKey
-        RequestPath="/$(Common_Stdout_ExtractedHTTPHost "$1")" Payload=""
+        RequestPath="/$(Common_Stdout_ExtractedHTTPHost "$1")"
         if [ -z "${MaxKeys}" ] || Common_Containing_Regex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
         Prefix=$(Common_Stdout_UriEncoded "$(Common_Stdout_ExtractedHTTPPath "$1")")
         CanonicalQueryString="$(
@@ -427,11 +408,6 @@ ERROR
         )list-type=2&max-keys=${MaxKeys}$(
           [ -z "${Prefix}" ] || printf "%s" "&prefix=${Prefix}"
         )"
-        HTTPMethod="GET"
-        Region=$(Laws_Stdout_Region)
-        APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "${Region}")
-        DateYMD=$(date +'%Y%m%d')
-        DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
         Response=$(CallAPIS3Get)
         # check error
         if Common_Containing_Regex "</Error>" "${Response}"; then
@@ -454,14 +430,8 @@ ERROR
   }
 
   Get() {
-    Laws_Set_AccessKey
     RequestPath="/$(Common_Stdout_UriEncodedWithoutSlash "$(Common_Stdout_SchemeAndSlashSlashRemoved "$1")")"
-    CanonicalQueryString="" Payload=""
-    HTTPMethod="GET"
-    Region=$(Laws_Stdout_Region)
-    APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "${Region}")
-    DateYMD=$(date +'%Y%m%d')
-    DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
+    CanonicalQueryString=""
     TmpFile=$(mktemp)
     CallAPIS3Get > "${TmpFile}"
     Response="$(cat "${TmpFile}")"
@@ -518,8 +488,8 @@ ERROR
   S3() {
     # check sub commands
     case "$1" in
-       ls) shift && ListArgs "$@" ;;
-      cat) shift && Concatenate "$@" ;;
+       ls) shift; HTTPMethod="GET"; Payload=""; ListArgs "$@" ;;
+      cat) shift; HTTPMethod="GET"; Payload=""; Concatenate "$@" ;;
        cp) shift && Copy "$@" ;;
         *) Laws_Stdout_ReadMe ;;
     esac
@@ -531,6 +501,12 @@ ERROR
       echo "${PROGRAM_NAME} ${VERSION}"
       exit 0
     fi
+
+    # prepare vars
+    DateYMD=$(date +'%Y%m%d')
+    DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
+    APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "$(Laws_Stdout_Region)")
+    Laws_Set_AccessKey
 
     # check sub commands
     case "$1" in
