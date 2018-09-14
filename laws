@@ -133,7 +133,7 @@ README
   )
 
   CommonContainingHelpOption() (
-    CommonContainingRegex "^[[:space:]]*\-+h(elp)?[[:space:]]*|[[:space:]]+\-+h(elp)?[[:space:]]*$|^[[:space:]]*help[[:space:]]*$" "$*"
+    CommonContainingRegex "^[[:blank:]]*\-+h(elp)?[[:blank:]]*|[[:blank:]]+\-+h(elp)?[[:blank:]]*$|^[[:blank:]]*help[[:blank:]]*$" "$*"
   )
 
   CommonCheckDependency() (

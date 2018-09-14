@@ -4,7 +4,7 @@ echo git pull ...
 git pull
 
 RELEASE_BRANCH_NAME="master"
-CURRENT_BRANCH_NAME=$(git branch | grep ^* | sed s/^[^[:blank:]][:blank:]//)
+CURRENT_BRANCH_NAME=$(git branch | grep ^* | sed s/^[^[:blank:]][[:blank:]]//)
 TAG_LATEST_VERSION=$(git tag | grep -E "[0-9]+\.[0-9]+\.[0-9]+" | sort -V | tail -1)
 DIRECTORY=$(cd $(dirname -- "$0") && pwd -P)
 PROGRAM="$(dirname -- "${DIRECTORY}")/laws"
@@ -33,4 +33,4 @@ else
 fi
 
 # : Delete latest version tag
-# git tag -d `laws version | sed s/^[^[:space:]]*[:space:]//` && git push origin :`laws version | sed s/^[^[:space:]]*[:space:]//`
+# git tag -d `laws version | sed s/^[^[:blank:]]*[[:blank:]]//` && git push origin :`laws version | sed s/^[^[:blank:]]*[[:blank:]]//`
