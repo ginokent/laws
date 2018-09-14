@@ -15,7 +15,7 @@ readme:
 		|| { git diff ./README.md; printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == git diff README.md Failed ================"; false; }
 
 test.sh:
-	@./.tools/test.sh
+	@time ./.tools/test.sh
 
 release: test
 	@./.tools/release.sh
