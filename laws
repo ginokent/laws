@@ -9,7 +9,7 @@ if ! echo "$-" | grep -q i; then
 
   set -e
 
-  readonly VERSION="0.0.10"
+  readonly VERSION="0.0.11"
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
   LawsStdoutReadMe() (
