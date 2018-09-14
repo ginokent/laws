@@ -4,24 +4,16 @@ echo git pull ...
 git pull
 
 RELEASE_BRANCH_NAME="master"
-CURRENT_BRANCH_NAME=$(git branch | grep ^* | sed s/^[^[:blank:]][[:blank:]]//)
+CURRENT_BRANCH_NAME=$(git branch | grep ^* | sed s/^[^[:blank:]][:blank:]//)
 TAG_LATEST_VERSION=$(git tag | grep -E "[0-9]+\.[0-9]+\.[0-9]+" | sort -V | tail -1)
 DIRECTORY=$(cd $(dirname -- "$0") && pwd -P)
 PROGRAM="$(dirname -- "${DIRECTORY}")/laws"
 VERSION=$("${PROGRAM}" version | sed s/[^[:blank:]]*[[:blank:]]*//)
 
-#{
-#  TEST_SCRIPT="${DIRECTORY}/test.sh"
-#  printf "\e[1;37m%s\e[0m\n" "`LANG=C date` [TEST]  -- ${TEST_SCRIPT} Testing ----------------"
-#  if "${TEST_SCRIPT}"; then
-#    printf "\e[1;32m%s\e[0m\n" "`LANG=C date` [INFO]  -- ${TEST_SCRIPT} Passed ----------------"
-#  else
-#    printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == ${TEST_SCRIPT} Failed ================"; exit 1
-#  fi
-#}
-
 printf "\e[1;32m%s\e[0m\n" "`LANG=C date` [INFO]  -- release ${VERSION} ----------------"
-if [ "${VERSION}" != "${TAG_LATEST_VERSION}" ]; then
+if [ "${VERSION}" = "${TAG_LATEST_VERSION}" ]; then
+  printf "\e[1;33m%s\e[0m\n" "`LANG=C date` [WARN]  == ${VERSION} already exist ================"
+else
   if [ "${RELEASE_BRANCH_NAME}" != "${CURRENT_BRANCH_NAME}" ]; then
     printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == current branch is ${CURRENT_BRANCH_NAME} ================"
     printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] Please git checkout ${RELEASE_BRANCH_NAME}"
@@ -38,6 +30,7 @@ if [ "${VERSION}" != "${TAG_LATEST_VERSION}" ]; then
   git push origin ${VERSION}
   git checkout ${CURRENT_BRANCH_NAME}
   printf "\e[1;32m%s\e[0m\n" "`LANG=C date` [INFO]  -- release ${VERSION} Passed ----------------"
-else
-  printf "\e[1;33m%s\e[0m\n" "`LANG=C date` [WARN]  == ${VERSION} already exist ================"
 fi
+
+# : Delete latest version tag
+# git tag -d `laws version | sed s/^[^[:space:]]*[:space:]//` && git push origin :`laws version | sed s/^[^[:space:]]*[:space:]//`
