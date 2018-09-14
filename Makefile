@@ -1,8 +1,12 @@
 SHELL := /bin/bash
+GIT_ROOT_DIR := $(shell echo "`pwd`/`git rev-parse --show-cdup`")
 
 .PHONY: readme release syntax test test.sh
 
-test: readme syntax test.sh
+test: init readme syntax test.sh
+
+init:
+	@test -f "${GIT_ROOT_DIR}/.git/hooks/pre-commit" || cp -a "${GIT_ROOT_DIR}/.tools/git/hooks/pre-commit" "${GIT_ROOT_DIR}/.git/hooks/pre-commit"
 
 syntax:
 	@./.tools/syntax.sh

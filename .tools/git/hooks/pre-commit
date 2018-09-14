@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# cd root dir
+cd $(pwd)/$(git rev-parse --show-cdup)
+
+# run test
+make test
