@@ -31,6 +31,3 @@ else
   git checkout ${CURRENT_BRANCH_NAME}
   printf "\e[1;32m%s\e[0m\n" "`LANG=C date` [INFO]  -- release ${VERSION} Passed ----------------"
 fi
-
-# : Delete latest version tag
-# git tag -d `laws version | sed s/^[^[:blank:]]*[[:blank:]]//` && git push origin :`laws version | sed s/^[^[:blank:]]*[[:blank:]]//`

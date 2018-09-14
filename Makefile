@@ -23,3 +23,7 @@ test.sh:
 
 release: test
 	@./.tools/release.sh
+
+force-release: test
+	git tag -d $(shell laws version | sed s/^[^[:blank:]]*[[:blank:]]//) && git push origin :$(shell laws version | sed s/^[^[:blank:]]*[[:blank:]]//)
+	@./.tools/release.sh
