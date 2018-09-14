@@ -3,7 +3,7 @@
 set -e
 
 # If on the master branch:
-if { git branch | tee /dev/stderr | grep -q ^*.*master; }; then
+if { git branch -a | tee /dev/stderr | grep -q ^*.*master; }; then
   echo "[ERROR] You can not commit on the \"master\" branch."
   exit 1
 fi
