@@ -217,7 +217,7 @@ README
     # shellcheck disable=SC2059
     printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
       case "$LINE" in
-        [[:alnum:].~_-]|/)
+        /|[[:alnum:].~_-])
           printf "%s" "$LINE"
           ;;
         *)
@@ -229,34 +229,26 @@ README
 
   Laws_Stdout_Region() (
     # 1. already declared
-    if [ -z "${region}" ] && [ "${Region}" ]; then
-      region="${Region}"
-    fi
+    [ -z "${Region}" ] || { echo "${Region}"; return 0; }
 
     # 2. environment variable: AWS_REGION
-    if [ -z "${region}" ] && [ "${AWS_REGION}" ]; then
-      region="${AWS_REGION}"
-    fi
+    [ -z "${AWS_REGION}" ] || { echo "${AWS_REGION}"; return 0; }
 
     # 3. config file: ~/.aws/config
-    if [ -z "${region}" ] && [ -r ~/.aws/config ]; then
+    if [ -r ~/.aws/config ]; then
       INI_region=""
       eval "$(Common_Stdout_ParsedINI "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
       if [ "${INI_region}" ]; then
-        region="${INI_region}"
+        echo "${INI_region}"
+        return 0
       else
         Common_Stdout_Log W "Laws_Stdout_Region(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
       fi
     fi
 
     # 4. meta-data
-    if [ -z "${region}" ]; then
-      region=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' ||:)
-    fi
-
-    # check Region
-    if [ -z "${region}" ]; then
-      ErrorMessage=$(cat <<"ERROR"
+    if ! curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; then
+      Common_Stdout_Log E "$(cat <<"ERROR"
 
 Laws_Stdout_Region(): Not specified AWS Region
 Follow the steps below to register AWS region:
@@ -273,16 +265,13 @@ Follow the steps below to register AWS region:
     $ export AWS_REGION=ap-northeast-1
 ;
 ERROR
-      )
-      Common_Stdout_Log E "${ErrorMessage}"
+      )"
       exit 1
     fi
-
-    # return
-    echo "${region}"
   )
 
   Laws_Stdout_APIEndpoint() (
+    [ -z "${APIEndpoint}" ] || { echo "${APIEndpoint}"; return 0; }
     service="${1:?"[FATAL] Laws_Stdout_APIEndpoint(): requires \"service\" as \$1"}"
     region="${2:?"[FATAL] Laws_Stdout_APIEndpoint(): requires \"region\" as \$2"}"
     case "${service}" in
@@ -330,7 +319,7 @@ ERROR
 
       # if STSToken is null, regarding as not running on EC2.
       if [ -z "${STSToken}" ]; then
-      ErrorMessage=$(cat <<"ERROR"
+        Common_Stdout_Log E "$(cat <<"ERROR"
 
 Laws_Set_AccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
@@ -349,8 +338,7 @@ Follow the steps below to register your credentials:
     $ export AWS_SECRET_ACCESS_KEY=****************************************
 ;
 ERROR
-      )
-      Common_Stdout_Log E "${ErrorMessage}"
+        )"
       exit 1
       fi
     fi
@@ -358,7 +346,7 @@ ERROR
 
   Laws_Stdout_CanonicalHeader() {
     printf "%s\n" "host:${APIEndpoint}"
-    printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
+    printf "%s\n" "x-amz-content-sha256:$(Common_Stdout_SHA256Hash "${Payload}")"
     printf "%s\n" "x-amz-date:${DateISO8601}"
     [ -z "${STSToken}" ] || printf "%s\n" "x-amz-security-token:${STSToken}"
   }
@@ -370,52 +358,42 @@ ERROR
     printf "%s\n" "$(Laws_Stdout_CanonicalHeader)"
     printf "%s\n" "" # blank lines are required
     printf "%s\n" "$(Laws_Stdout_CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
-    printf "%s\n" "${HashedPayload}"
+    printf "%s\n" "$(Common_Stdout_SHA256Hash "${Payload}")"
   }
 
-  Laws_Set_AWSSignatureV4ForS3Get() {
-    # AWS Signature Version 4 for Amazon S3 REST API
-    HTTPMethod="GET"
-    [ "${APIEndpoint}" ] || APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "${Region}")
-    DateYMD=$(date +'%Y%m%d')
-    DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
-    HashedPayload=$(Common_Stdout_SHA256Hash "${Payload}")
-    CanonicalRequest=$(Laws_Stdout_CanonicalRequest)
-    StringtoSign=$(
-      printf "%s\n" "AWS4-HMAC-SHA256"
-      printf "%s\n" "${DateISO8601}"
-      printf "%s\n" "${DateYMD}/${Region}/s3/aws4_request"
-      printf "%s\n" "$(Common_Stdout_SHA256Hash "${CanonicalRequest}")"
-    )
-    Signature=$(
+  Laws_Stdout_StringtoSign() {
+    printf "%s\n" "AWS4-HMAC-SHA256"
+    printf "%s\n" "${DateISO8601}"
+    printf "%s\n" "${DateYMD}/${Region}/s3/aws4_request"
+    printf "%s\n" "$(Common_Stdout_SHA256Hash "$(Laws_Stdout_CanonicalRequest)")"
+  }
+
+  Laws_Stdout_Signature() {
+    Common_Stdout_HMAC "$(
       Common_Stdout_HMAC "$(
         Common_Stdout_HMAC "$(
           Common_Stdout_HMAC "$(
             Common_Stdout_HMAC "$(
-              Common_Stdout_HMAC "$(
-                Common_Stdout_Hex "AWS4${SecretAccessKey}"
-              )" "${DateYMD}"
-            )" "${Region}"
-          )" "s3"
-        )" "aws4_request"
-      )" "${StringtoSign}"
-    )
-    Authorization=$(
-      printf "%s" "AWS4-HMAC-SHA256"
-      printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
-      printf "%s" " SignedHeaders=$(Laws_Stdout_CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
-      printf "%s" " Signature=${Signature}"
-    )
+              Common_Stdout_Hex "AWS4${SecretAccessKey}"
+            )" "${DateYMD}"
+          )" "${Region}"
+        )" "s3"
+      )" "aws4_request"
+    )" "$(Laws_Stdout_StringtoSign)"
+  }
+
+  Laws_Stdout_Authorization() {
+    printf "%s" "AWS4-HMAC-SHA256"
+    printf "%s" " Credential=${AccessKeyId}/${DateYMD}/${Region}/s3/aws4_request,"
+    printf "%s" " SignedHeaders=$(Laws_Stdout_CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
+    printf "%s" " Signature=$(Laws_Stdout_Signature)"
   }
 
   CallAPIS3Get() {
     {
       printf "%s" "curl -kLsS 'https://${APIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")'"
-      printf "%s" " -H 'Host: ${APIEndpoint}'"
-      printf "%s" " -H 'x-amz-content-sha256: ${HashedPayload}'"
-      printf "%s" " -H 'x-amz-date: ${DateISO8601}'"
-      [ -z "${STSToken}" ] || printf "%s" " -H 'x-amz-security-token: ${STSToken}'"
-      printf "%s" " -H 'Authorization: ${Authorization}'"
+      printf "%s" " -H '$(Laws_Stdout_CanonicalHeader)'"
+      printf "%s" " -H 'Authorization: $(Laws_Stdout_Authorization)'"
     } | sh
   }
 
@@ -423,12 +401,14 @@ ERROR
     # check sub commands
     case "$1" in
       "") # when $# = 0
-        Region=$(Laws_Stdout_Region)
-        [ "${APIEndpoint}" ] || APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "${Region}")
         # If there is no argument, list the buckets.
         Laws_Set_AccessKey
         RequestPath="/" CanonicalQueryString="" Payload=""
-        Laws_Set_AWSSignatureV4ForS3Get
+        HTTPMethod="GET"
+        Region=$(Laws_Stdout_Region)
+        APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "${Region}")
+        DateYMD=$(date +'%Y%m%d')
+        DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
         Response=$(CallAPIS3Get)
         if Common_Containing_Regex "</Error>" "${Response}"; then
           echo "${Response}" >/dev/stderr
@@ -437,8 +417,6 @@ ERROR
         echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
         ;;
       *)
-        Region=$(Laws_Stdout_Region)
-        [ "${APIEndpoint}" ] || APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "${Region}")
         # If there is an argument, list the objects.
         Laws_Set_AccessKey
         RequestPath="/$(Common_Stdout_ExtractedHTTPHost "$1")" Payload=""
@@ -449,7 +427,11 @@ ERROR
         )list-type=2&max-keys=${MaxKeys}$(
           [ -z "${Prefix}" ] || printf "%s" "&prefix=${Prefix}"
         )"
-        Laws_Set_AWSSignatureV4ForS3Get
+        HTTPMethod="GET"
+        Region=$(Laws_Stdout_Region)
+        APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "${Region}")
+        DateYMD=$(date +'%Y%m%d')
+        DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
         Response=$(CallAPIS3Get)
         # check error
         if Common_Containing_Regex "</Error>" "${Response}"; then
@@ -472,11 +454,14 @@ ERROR
   }
 
   Get() {
-    Region=$(Laws_Stdout_Region)
     Laws_Set_AccessKey
     RequestPath="/$(Common_Stdout_UriEncodedWithoutSlash "$(Common_Stdout_SchemeAndSlashSlashRemoved "$1")")"
     CanonicalQueryString="" Payload=""
-    Laws_Set_AWSSignatureV4ForS3Get
+    HTTPMethod="GET"
+    Region=$(Laws_Stdout_Region)
+    APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "${Region}")
+    DateYMD=$(date +'%Y%m%d')
+    DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
     TmpFile=$(mktemp)
     CallAPIS3Get > "${TmpFile}"
     Response="$(cat "${TmpFile}")"
