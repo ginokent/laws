@@ -136,7 +136,7 @@ README
 
   CommonCheckDependency() (
     for cmd in "$@"; do
-      if ! command -v "${cmd}" >/dev/null; then
+      if ! command -v -- "${cmd}" >/dev/null; then
         CommonStdoutLog E "CommonCheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
         exit 1
       fi
@@ -170,7 +170,7 @@ README
   CommonStdoutExtractedByPattern() (
     pattern="${1:?"[FATAL] CommonStdoutExtractedByPattern(): requires \"pattern\" as \$1"}"
     contents="${2:?"[FATAL] CommonStdoutExtractedByPattern(): requires \"contents\" as \$2"}"
-    echo "${contents}" | grep -Eo "${pattern}"
+    echo "${contents}" | grep -Eo -- "${pattern}"
   )
 
   CommonStdoutExtractedXMLValue() (
@@ -419,8 +419,7 @@ ERROR
           exit 1
         fi
         # normal
-        BucketName=$(CommonStdoutExtractedHTTPHost "$1")
-        CommonStdoutExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${Response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"${BucketName}/"'\1|g'
+        CommonStdoutExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${Response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(CommonStdoutExtractedHTTPHost "$1")"'/\1|g'
         if CommonContainingRegex "<NextContinuationToken>[^<]*" "${Response}"; then
           ContinuationToken=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedByPattern "<NextContinuationToken>[^<]*" "${Response}" | sed 's|.*>||g')")
           List "$@"
@@ -429,7 +428,7 @@ ERROR
     esac
   }
 
-  Get() {
+  LawsGet() {
     RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "$(CommonStdoutSchemeAndSlashSlashRemoved "$1")")"
     CanonicalQueryString=""
     TmpFile=$(mktemp)
@@ -438,7 +437,7 @@ ERROR
     if CommonContainingRegex "</Error>" "${Response}"; then
       if CommonContainingRegex "<Code>PermanentRedirect</Code>" "${Response}"; then
         APIEndpoint=$(CommonStdoutExtractedXMLValue "Endpoint" "${Response}")
-        Get "$@"
+        LawsGet "$@"
       fi
       echo "${Response}" >/dev/stderr
       exit 1
@@ -448,7 +447,7 @@ ERROR
     cat "${TmpFile}"
   }
 
-  ListArgs() {
+  LawsLs() {
     # if args contain "-h" or "--help" or "help" or ..., display README
     if CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
     if [ "$#" = 0 ]; then
@@ -460,37 +459,37 @@ ERROR
     fi
   }
 
-  Concatenate() {
+  LawsCat() {
     # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
     if [ "$#" = 0 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
     for arg in "$@"; do
-      Get "${arg}"
+      LawsGet "${arg}"
     done
   }
 
-  Copy() {
+  LawsCopy() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
     if [ "$#" -lt 2 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
     # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
-      CommonStdoutLog E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
+      CommonStdoutLog E "LawsCopy(): cp ( src=S3 dest=local ) is unimplemented"
       exit 1
     fi
     # copy local to s3
     if [ ! -x "$1" ]; then
       if [ -d "$(dirname "$2")" ]; then
-        Get "$1" > "$2"
+        LawsGet "$1" > "$2"
         exit 0
       fi
     fi
   }
 
-  S3() {
+  LawsS3() {
     # check sub commands
     case "$1" in
-       ls) shift; HTTPMethod="GET"; Payload=""; ListArgs "$@" ;;
-      cat) shift; HTTPMethod="GET"; Payload=""; Concatenate "$@" ;;
-       cp) shift && Copy "$@" ;;
+       ls) shift; HTTPMethod="GET"; Payload=""; LawsLs "$@" ;;
+      cat) shift; HTTPMethod="GET"; Payload=""; LawsCat "$@" ;;
+       cp) shift && LawsCopy "$@" ;;
         *) LawsStdoutReadMe ;;
     esac
   }
@@ -510,7 +509,7 @@ ERROR
 
     # check sub commands
     case "$1" in
-      s3) shift && S3 "$@" ;;
+      s3) shift && LawsS3 "$@" ;;
        *) LawsStdoutReadMe ;;
     esac
   }
