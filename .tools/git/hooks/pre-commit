@@ -1,7 +1,15 @@
 #!/bin/sh
 
-# cd root dir
-cd $(pwd)/$(git rev-parse --show-cdup)
+set -e
+
+# If on the master branch:
+if { git branch | tee /dev/stderr | grep -q ^*.*master; }; then
+  echo "[ERROR] You can not commit on the \"master\" branch."
+  exit 1
+fi
+
+# cd repository root directory
+cd "$(pwd)/$(git rev-parse --show-cdup)"
 
 # run test
 make test
