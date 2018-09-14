@@ -10,7 +10,7 @@ if ! echo "$-" | grep -q i; then
   readonly VERSION="0.0.10"
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
-  Laws_Stdout_ReadMe() (
+  LawsStdoutReadMe() (
   cat <<"README" >/dev/stderr
 
 laws
@@ -100,29 +100,29 @@ README
   return 0
   )
 
-  Common_Stdout_DateUTC() (
+  CommonStdoutDateUTC() (
     LANG=C TZ=UTC date +"%Y%m%dT%H%M%SZ"
   )
 
-  Common_Stdout_Log() (
-    level=${1:?"[FATAL] Common_Stdout_Log(): requires \"level\" as \$1"}
-    logMessages=${2:?"[FATAL] Common_Stdout_Log(): requires \"logMessages\" as \$2"}
+  CommonStdoutLog() (
+    level=${1:?"[FATAL] CommonStdoutLog(): requires \"level\" as \$1"}
+    logMessages=${2:?"[FATAL] CommonStdoutLog(): requires \"logMessages\" as \$2"}
     case "${level}" in
-      f|F) logMessagesLeveled="FATAL ${logMessages}" ;;
-      e|E) logMessagesLeveled="ERROR ${logMessages}" ;;
-      w|W) logMessagesLeveled="WARN  ${logMessages}" ;;
-        *) logMessagesLeveled="INFO  ${logMessages}" ;;
+      f|F) tag="[FATAL]" ;;
+      e|E) tag="[ERROR]" ;;
+      w|W) tag="[WARN] " ;;
+        *) tag="[INFO] " ;;
     esac
-    printf "%s\n" "${logMessagesLeveled}" | sed "s/^/$(Common_Stdout_DateUTC) ${PROGRAM_NAME}[$$]: /" >/dev/stderr
+    printf "%s\n" "${logMessages}" | sed "s/^/$(CommonStdoutDateUTC) ${PROGRAM_NAME}[$$]: ${tag} /" >/dev/stderr
   )
 
-  Common_Containing_MultiBytesChar() (
+  CommonContainingMultiBytesChar() (
     contents="$1"
     echo "${contents}" | LANG=C grep -Evq '^[[:cntrl:][:print:]]*$'
   )
 
-  Common_Containing_Regex() (
-    pattern="${1:?"[FATAL] Common_Containing_Regex(): requires \"pattern\" as \$1"}"
+  CommonContainingRegex() (
+    pattern="${1:?"[FATAL] CommonContainingRegex(): requires \"pattern\" as \$1"}"
     contents="$2"
     if echo "${contents}" | grep -Eq -- "${pattern}"; then
       return 0
@@ -130,67 +130,67 @@ README
     return 1
   )
 
-  Common_Containing_HelpOption() (
-    Common_Containing_Regex "^[[:space:]]*\-+h(elp)?[[:space:]]*|[[:space:]]+\-+h(elp)?[[:space:]]*$|^[[:space:]]*help[[:space:]]*$" "$*"
+  CommonContainingHelpOption() (
+    CommonContainingRegex "^[[:space:]]*\-+h(elp)?[[:space:]]*|[[:space:]]+\-+h(elp)?[[:space:]]*$|^[[:space:]]*help[[:space:]]*$" "$*"
   )
 
-  Common_Check_Dependency() (
+  CommonCheckDependency() (
     for cmd in "$@"; do
       if ! command -v "${cmd}" >/dev/null; then
-        Common_Stdout_Log E "Common_Check_Dependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
+        CommonStdoutLog E "CommonCheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
         exit 1
       fi
     done
-  ); Common_Check_Dependency '[' cat curl date grep od openssl printf sed tr
+  ); CommonCheckDependency '[' cat curl date grep od openssl printf sed tr
 
-  Common_Stdout_ParsedINI() (
+  CommonStdoutParsedINI() (
     # For the setting in the ini file, output commands which define them as shell variables prefixed "INI_".
-    iniSectionPattern="${1:?"[FATAL] Common_Stdout_ParsedINI(): requires \"iniSectionPattern\" as \$1"}"
-    file=${2:?"[FATAL] Common_Stdout_ParsedINI(): requires \"file\" as \$2"}
+    iniSectionPattern="${1:?"[FATAL] CommonStdoutParsedINI(): requires \"iniSectionPattern\" as \$1"}"
+    file=${2:?"[FATAL] CommonStdoutParsedINI(): requires \"file\" as \$2"}
     sed "s/[[:blank:]]*\=[[:blank:]]*/=/g; s/[#;].*$//; s/[[:blank:]]*$//; s/^[[:blank:]]*//; s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/" "${file}" \
       | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
   )
 
-  Common_Stdout_Hex() (
+  CommonStdoutHex() (
     printf "%s" "$1" | od -v -A n -t x1 | tr -d '[:blank:]|\n'
   )
 
-  Common_Stdout_HMAC() (
+  CommonStdoutHMAC() (
     printf "%s" "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
   )
 
-  Common_Stdout_SHA256Hash() (
+  CommonStdoutSHA256Hash() (
     printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
   )
 
-  Common_Stdout_SchemeAndSlashSlashRemoved() (
+  CommonStdoutSchemeAndSlashSlashRemoved() (
     printf "%s" "$1" | sed 's|^[^:]*://||'
   )
 
-  Common_Stdout_ExtractedByPattern() (
-    pattern="${1:?"[FATAL] Common_Stdout_ExtractedByPattern(): requires \"pattern\" as \$1"}"
-    contents="${2:?"[FATAL] Common_Stdout_ExtractedByPattern(): requires \"contents\" as \$2"}"
+  CommonStdoutExtractedByPattern() (
+    pattern="${1:?"[FATAL] CommonStdoutExtractedByPattern(): requires \"pattern\" as \$1"}"
+    contents="${2:?"[FATAL] CommonStdoutExtractedByPattern(): requires \"contents\" as \$2"}"
     echo "${contents}" | grep -Eo "${pattern}"
   )
 
-  Common_Stdout_ExtractedXMLValue() (
-    tagName="${1:?"[FATAL] Common_Stdout_ExtractedXMLValue(): requires \"tagName\" as \$1"}"
-    contents="${2:?"[FATAL] Common_Stdout_ExtractedXMLValue(): requires \"contents\" as \$2"}"
+  CommonStdoutExtractedXMLValue() (
+    tagName="${1:?"[FATAL] CommonStdoutExtractedXMLValue(): requires \"tagName\" as \$1"}"
+    contents="${2:?"[FATAL] CommonStdoutExtractedXMLValue(): requires \"contents\" as \$2"}"
     echo "${contents}" | grep -Eo "<${tagName}>.*</${tagName}>" | sed "s|</*${tagName}>||g"
   )
 
-  Common_Stdout_ExtractedHTTPHost() {
-    Common_Stdout_SchemeAndSlashSlashRemoved "$1" | sed 's|/.*||'
+  CommonStdoutExtractedHTTPHost() {
+    CommonStdoutSchemeAndSlashSlashRemoved "$1" | sed 's|/.*||'
   }
 
-  Common_Stdout_ExtractedHTTPPath() {
-    Common_Stdout_SchemeAndSlashSlashRemoved "$1" | grep '/' | sed 's|^[^/]*/||'
+  CommonStdoutExtractedHTTPPath() {
+    CommonStdoutSchemeAndSlashSlashRemoved "$1" | grep '/' | sed 's|^[^/]*/||'
   }
 
-  Common_Stdout_UriEncoded() {
+  CommonStdoutUriEncoded() {
     contents="$1"
-    if Common_Containing_MultiBytesChar "${contents}"; then
-      Common_Stdout_Log E "containing multi bytes char"
+    if CommonContainingMultiBytesChar "${contents}"; then
+      CommonStdoutLog E "containing multi bytes char"
       exit 1
     fi
     LC_COLLATE=C
@@ -207,10 +207,10 @@ README
     done
   }
 
-  Common_Stdout_UriEncodedWithoutSlash() {
+  CommonStdoutUriEncodedWithoutSlash() {
     contents="$1"
-    if Common_Containing_MultiBytesChar "${contents}"; then
-      Common_Stdout_Log E "containing multi bytes char"
+    if CommonContainingMultiBytesChar "${contents}"; then
+      CommonStdoutLog E "containing multi bytes char"
       exit 1
     fi
     LC_COLLATE=C
@@ -227,27 +227,27 @@ README
     done
   }
 
-  Laws_Stdout_Region() (
+  LawsStdoutRegion() (
     # 1. environment variable: AWS_REGION
     [ -z "${AWS_REGION}" ] || { echo "${AWS_REGION}"; return 0; }
 
     # 2. config file: ~/.aws/config
     if [ -r ~/.aws/config ]; then
       INI_region=""
-      eval "$(Common_Stdout_ParsedINI "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
+      eval "$(CommonStdoutParsedINI "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
       if [ "${INI_region}" ]; then
         echo "${INI_region}"
         return 0
       else
-        Common_Stdout_Log W "Laws_Stdout_Region(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
+        CommonStdoutLog W "LawsStdoutRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
       fi
     fi
 
     # 3. meta-data
     if ! curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; then
-      Common_Stdout_Log E "$(cat <<"ERROR"
+      CommonStdoutLog E "$(cat <<"ERROR"
 
-Laws_Stdout_Region(): Not specified AWS Region
+LawsStdoutRegion(): Not specified AWS Region
 Follow the steps below to register AWS region:
 
 1. Save config as: ~/.aws/config
@@ -267,17 +267,17 @@ ERROR
     fi
   )
 
-  Laws_Stdout_APIEndpoint() (
+  LawsStdoutAPIEndpoint() (
     [ -z "${APIEndpoint}" ] || { echo "${APIEndpoint}"; return 0; }
-    service="${1:?"[FATAL] Laws_Stdout_APIEndpoint(): requires \"service\" as \$1"}"
-    region="${2:?"[FATAL] Laws_Stdout_APIEndpoint(): requires \"region\" as \$2"}"
+    service="${1:?"[FATAL] LawsStdoutAPIEndpoint(): requires \"service\" as \$1"}"
+    region="${2:?"[FATAL] LawsStdoutAPIEndpoint(): requires \"region\" as \$2"}"
     case "${service}" in
       s3) [ "${region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${region}.amazonaws.com" ;;
-       *) Common_Stdout_Log E "${service} not support"; return 1 ;;
+       *) CommonStdoutLog E "${service} not support"; return 1 ;;
     esac
   )
 
-  Laws_Set_AccessKey() {
+  LawsSetAccessKey() {
     # get credentials from environment variables
     if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
       if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
@@ -289,10 +289,10 @@ ERROR
     if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
       if [ -r ~/.aws/credentials ]; then
         INI_aws_access_key_id="" INI_aws_secret_access_key=""
-        eval "$(Common_Stdout_ParsedINI "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
+        eval "$(CommonStdoutParsedINI "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
         AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
         if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-          Common_Stdout_Log W "Laws_Set_AccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
+          CommonStdoutLog W "LawsSetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
         fi
       fi
     fi
@@ -307,9 +307,9 @@ ERROR
 
       # if STSToken is null, regarding as not running on EC2.
       if [ -z "${STSToken}" ]; then
-        Common_Stdout_Log E "$(cat <<"ERROR"
+        CommonStdoutLog E "$(cat <<"ERROR"
 
-Laws_Set_AccessKey(): Failed to connect http://169.254.169.254/
+LawsSetAccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
 
 1. Save credentials file as: ~/.aws/credentials
@@ -332,56 +332,56 @@ ERROR
     fi
   }
 
-  Laws_Stdout_CanonicalHeader() {
+  LawsStdoutCanonicalHeader() {
     printf "%s\n" "host:${APIEndpoint}"
-    printf "%s\n" "x-amz-content-sha256:$(Common_Stdout_SHA256Hash "${Payload}")"
+    printf "%s\n" "x-amz-content-sha256:$(CommonStdoutSHA256Hash "${Payload}")"
     printf "%s\n" "x-amz-date:${DateISO8601}"
     [ -z "${STSToken}" ] || printf "%s\n" "x-amz-security-token:${STSToken}"
   }
 
-  Laws_Stdout_CanonicalRequest() {
+  LawsStdoutCanonicalRequest() {
     printf "%s\n" "${HTTPMethod}" # GET
     printf "%s\n" "${RequestPath}" # /your-backet
     printf "%s\n" "${CanonicalQueryString}" # list-type=2&prefix=%2Fpath%2Fto%2Ffile
-    printf "%s\n" "$(Laws_Stdout_CanonicalHeader)"
+    printf "%s\n" "$(LawsStdoutCanonicalHeader)"
     printf "%s\n" "" # blank lines are required
-    printf "%s\n" "$(Laws_Stdout_CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
-    printf "%s\n" "$(Common_Stdout_SHA256Hash "${Payload}")"
+    printf "%s\n" "$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
+    printf "%s\n" "$(CommonStdoutSHA256Hash "${Payload}")"
   }
 
-  Laws_Stdout_StringtoSign() {
+  LawsStdoutStringtoSign() {
     printf "%s\n" "AWS4-HMAC-SHA256"
     printf "%s\n" "${DateISO8601}"
-    printf "%s\n" "${DateYMD}/$(Laws_Stdout_Region)/s3/aws4_request"
-    printf "%s\n" "$(Common_Stdout_SHA256Hash "$(Laws_Stdout_CanonicalRequest)")"
+    printf "%s\n" "${DateYMD}/$(LawsStdoutRegion)/s3/aws4_request"
+    printf "%s\n" "$(CommonStdoutSHA256Hash "$(LawsStdoutCanonicalRequest)")"
   }
 
-  Laws_Stdout_Signature() {
-    Common_Stdout_HMAC "$(
-      Common_Stdout_HMAC "$(
-        Common_Stdout_HMAC "$(
-          Common_Stdout_HMAC "$(
-            Common_Stdout_HMAC "$(
-              Common_Stdout_Hex "AWS4${SecretAccessKey}"
+  LawsStdoutSignature() {
+    CommonStdoutHMAC "$(
+      CommonStdoutHMAC "$(
+        CommonStdoutHMAC "$(
+          CommonStdoutHMAC "$(
+            CommonStdoutHMAC "$(
+              CommonStdoutHex "AWS4${SecretAccessKey}"
             )" "${DateYMD}"
-          )" "$(Laws_Stdout_Region)"
+          )" "$(LawsStdoutRegion)"
         )" "s3"
       )" "aws4_request"
-    )" "$(Laws_Stdout_StringtoSign)"
+    )" "$(LawsStdoutStringtoSign)"
   }
 
-  Laws_Stdout_Authorization() {
+  LawsStdoutAuthorization() {
     printf "%s" "AWS4-HMAC-SHA256"
-    printf "%s" " Credential=${AccessKeyId}/${DateYMD}/$(Laws_Stdout_Region)/s3/aws4_request,"
-    printf "%s" " SignedHeaders=$(Laws_Stdout_CanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
-    printf "%s" " Signature=$(Laws_Stdout_Signature)"
+    printf "%s" " Credential=${AccessKeyId}/${DateYMD}/$(LawsStdoutRegion)/s3/aws4_request,"
+    printf "%s" " SignedHeaders=$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
+    printf "%s" " Signature=$(LawsStdoutSignature)"
   }
 
   CallAPIS3Get() {
     {
       printf "%s" "curl -kLsS 'https://${APIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")'"
-      printf "%s" " -H '$(Laws_Stdout_CanonicalHeader)'"
-      printf "%s" " -H 'Authorization: $(Laws_Stdout_Authorization)'"
+      printf "%s" " -H '$(LawsStdoutCanonicalHeader)'"
+      printf "%s" " -H 'Authorization: $(LawsStdoutAuthorization)'"
     } | sh
   }
 
@@ -393,16 +393,16 @@ ERROR
         CanonicalQueryString=""
         Response=$(CallAPIS3Get)
         # check error
-        if Common_Containing_Regex "</Error>" "${Response}"; then
+        if CommonContainingRegex "</Error>" "${Response}"; then
           echo "${Response}" >/dev/stderr
           exit 1
         fi
         echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
         ;;
       *)
-        RequestPath="/$(Common_Stdout_ExtractedHTTPHost "$1")"
-        if [ -z "${MaxKeys}" ] || Common_Containing_Regex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
-        Prefix=$(Common_Stdout_UriEncoded "$(Common_Stdout_ExtractedHTTPPath "$1")")
+        RequestPath="/$(CommonStdoutExtractedHTTPHost "$1")"
+        if [ -z "${MaxKeys}" ] || CommonContainingRegex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
+        Prefix=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedHTTPPath "$1")")
         CanonicalQueryString="$(
           [ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&"
         )list-type=2&max-keys=${MaxKeys}$(
@@ -410,19 +410,19 @@ ERROR
         )"
         Response=$(CallAPIS3Get)
         # check error
-        if Common_Containing_Regex "</Error>" "${Response}"; then
-          if Common_Containing_Regex "<Code>PermanentRedirect</Code>" "${Response}"; then
-            APIEndpoint=$(Common_Stdout_ExtractedXMLValue "Endpoint" "${Response}")
+        if CommonContainingRegex "</Error>" "${Response}"; then
+          if CommonContainingRegex "<Code>PermanentRedirect</Code>" "${Response}"; then
+            APIEndpoint=$(CommonStdoutExtractedXMLValue "Endpoint" "${Response}")
             List "$@"
           fi
           echo "${Response}" >/dev/stderr
           exit 1
         fi
         # normal
-        BucketName=$(Common_Stdout_ExtractedHTTPHost "$1")
-        Common_Stdout_ExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${Response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"${BucketName}/"'\1|g'
-        if Common_Containing_Regex "<NextContinuationToken>[^<]*" "${Response}"; then
-          ContinuationToken=$(Common_Stdout_UriEncoded "$(Common_Stdout_ExtractedByPattern "<NextContinuationToken>[^<]*" "${Response}" | sed 's|.*>||g')")
+        BucketName=$(CommonStdoutExtractedHTTPHost "$1")
+        CommonStdoutExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${Response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"${BucketName}/"'\1|g'
+        if CommonContainingRegex "<NextContinuationToken>[^<]*" "${Response}"; then
+          ContinuationToken=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedByPattern "<NextContinuationToken>[^<]*" "${Response}" | sed 's|.*>||g')")
           List "$@"
         fi
         ;;
@@ -430,14 +430,14 @@ ERROR
   }
 
   Get() {
-    RequestPath="/$(Common_Stdout_UriEncodedWithoutSlash "$(Common_Stdout_SchemeAndSlashSlashRemoved "$1")")"
+    RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "$(CommonStdoutSchemeAndSlashSlashRemoved "$1")")"
     CanonicalQueryString=""
     TmpFile=$(mktemp)
     CallAPIS3Get > "${TmpFile}"
     Response="$(cat "${TmpFile}")"
-    if Common_Containing_Regex "</Error>" "${Response}"; then
-      if Common_Containing_Regex "<Code>PermanentRedirect</Code>" "${Response}"; then
-        APIEndpoint=$(Common_Stdout_ExtractedXMLValue "Endpoint" "${Response}")
+    if CommonContainingRegex "</Error>" "${Response}"; then
+      if CommonContainingRegex "<Code>PermanentRedirect</Code>" "${Response}"; then
+        APIEndpoint=$(CommonStdoutExtractedXMLValue "Endpoint" "${Response}")
         Get "$@"
       fi
       echo "${Response}" >/dev/stderr
@@ -450,7 +450,7 @@ ERROR
 
   ListArgs() {
     # if args contain "-h" or "--help" or "help" or ..., display README
-    if Common_Containing_HelpOption "$*"; then Laws_Stdout_ReadMe; fi
+    if CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
     if [ "$#" = 0 ]; then
       List
     else 
@@ -462,7 +462,7 @@ ERROR
 
   Concatenate() {
     # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" = 0 ] || Common_Containing_HelpOption "$*"; then Laws_Stdout_ReadMe; fi
+    if [ "$#" = 0 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
     for arg in "$@"; do
       Get "${arg}"
     done
@@ -470,10 +470,10 @@ ERROR
 
   Copy() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" -lt 2 ] || Common_Containing_HelpOption "$*"; then Laws_Stdout_ReadMe; fi
+    if [ "$#" -lt 2 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
     # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
-      Common_Stdout_Log E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
+      CommonStdoutLog E "Copy(): cp ( src=S3 dest=local ) is unimplemented"
       exit 1
     fi
     # copy local to s3
@@ -491,13 +491,13 @@ ERROR
        ls) shift; HTTPMethod="GET"; Payload=""; ListArgs "$@" ;;
       cat) shift; HTTPMethod="GET"; Payload=""; Concatenate "$@" ;;
        cp) shift && Copy "$@" ;;
-        *) Laws_Stdout_ReadMe ;;
+        *) LawsStdoutReadMe ;;
     esac
   }
 
   main() {
     # display version
-    if Common_Containing_Regex "-V|\-*version" "$*"; then
+    if CommonContainingRegex "-V|\-*version" "$*"; then
       echo "${PROGRAM_NAME} ${VERSION}"
       exit 0
     fi
@@ -505,19 +505,19 @@ ERROR
     # prepare vars
     DateYMD=$(date +'%Y%m%d')
     DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
-    APIEndpoint=$(Laws_Stdout_APIEndpoint s3 "$(Laws_Stdout_Region)")
-    Laws_Set_AccessKey
+    APIEndpoint=$(LawsStdoutAPIEndpoint s3 "$(LawsStdoutRegion)")
+    LawsSetAccessKey
 
     # check sub commands
     case "$1" in
       s3) shift && S3 "$@" ;;
-       *) Laws_Stdout_ReadMe ;;
+       *) LawsStdoutReadMe ;;
     esac
   }
 
   main "$@"
 
-elif [ "$(command -v bash)" ]; then
+else
 
   # Interactive: laws as completion
   # ref: https://blog.cybozu.io/entry/2016/09/26/080000
