@@ -302,10 +302,10 @@ ERROR
     # get credentials from Instance Profile
     if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
       instanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || :)
-      responseIAMJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null ||:)
-      AccessKeyId=$(echo "${responseIAMJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-      SecretAccessKey=$(echo "${responseIAMJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-      STSToken=$(echo "${responseIAMJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+      secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null ||:)
+      AccessKeyId=$(echo "${secCredJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+      SecretAccessKey=$(echo "${secCredJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+      STSToken=$(echo "${secCredJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
 
       # if STSToken is null, regarding as not running on EC2.
       if [ -z "${STSToken}" ]; then
@@ -392,33 +392,44 @@ ERROR
       "") # when $# = 0
         RequestPath="/"
         CanonicalQueryString=""
-        Response=$(LawsStdoutCallAPIS3Get)
+        response=$(LawsStdoutCallAPIS3Get)
         # check error
-        if CommonContainingRegex "</Error>" "${Response}"; then
-          echo "${Response}" >/dev/stderr
+        if CommonContainingRegex "</Error>" "${response}"; then
+          echo "${response}" >/dev/stderr
           exit 1
         fi
-        echo "${Response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
+        echo "${response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
         ;;
+
       *)
+        # declare vars for methods
         RequestPath="/$(CommonStdoutExtractedHTTPHost "$1")"
         if [ -z "${MaxKeys}" ] || CommonContainingRegex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
         Prefix=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedHTTPPath "$1")")
         CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf "%s" "&prefix=${Prefix}")"
-        Response=$(LawsStdoutCallAPIS3Get)
-        # check error
-        if CommonContainingRegex "</Error>" "${Response}"; then
-          if CommonContainingRegex "<Code>PermanentRedirect</Code>" "${Response}"; then
-            APIEndpoint=$(CommonStdoutExtractedXMLValue "Endpoint" "${Response}")
+
+        # run
+        response=$(LawsStdoutCallAPIS3Get)
+
+        # if error
+        if CommonContainingRegex "</Error>" "${response}"; then
+          # if exist PermanentRedirect, declare new APIEndpoint and run LawsStdoutList
+          if CommonContainingRegex "<Code>PermanentRedirect</Code>" "${response}"; then
+            APIEndpoint=$(CommonStdoutExtractedXMLValue "Endpoint" "${response}")
             LawsStdoutList "$@"
           fi
-          echo "${Response}" >/dev/stderr
+
+          # print error to stderr
+          echo "${response}" >/dev/stderr
           exit 1
         fi
-        # normal
-        CommonStdoutExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${Response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(CommonStdoutExtractedHTTPHost "$1")"'/\1|g'
-        if CommonContainingRegex "<NextContinuationToken>[^<]*" "${Response}"; then
-          ContinuationToken=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedXMLValue "NextContinuationToken" "${Response}")")
+
+        # display edited response
+        CommonStdoutExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(CommonStdoutExtractedHTTPHost "$1")"'/\1|g'
+
+        # if exist NextContinuationToken, declare ContinuationToken and run LawsStdoutList
+        if CommonContainingRegex "<NextContinuationToken>[^<]*" "${response}"; then
+          ContinuationToken=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedXMLValue "NextContinuationToken" "${response}")")
           LawsStdoutList "$@"
         fi
         ;;
@@ -426,27 +437,40 @@ ERROR
   }
 
   LawsStdoutGet() {
+    # declare vars for methods
     RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "$(CommonStdoutSchemeAndSlashSlashRemoved "$1")")"
     CanonicalQueryString=""
-    TmpFile=$(mktemp)
-    LawsStdoutCallAPIS3Get > "${TmpFile}"
-    Response="$(cat "${TmpFile}")"
-    if CommonContainingRegex "</Error>" "${Response}"; then
-      if CommonContainingRegex "<Code>PermanentRedirect</Code>" "${Response}"; then
-        APIEndpoint=$(CommonStdoutExtractedXMLValue "Endpoint" "${Response}")
+
+    # run
+    tmpFile=$(mktemp)
+    LawsStdoutCallAPIS3Get > "${tmpFile}"
+    response="$(cat "${tmpFile}")"
+
+    # error or not
+    if CommonContainingRegex "</Error>" "${response}"; then
+      if CommonContainingRegex "<Code>PermanentRedirect</Code>" "${response}"; then
+        APIEndpoint=$(CommonStdoutExtractedXMLValue "Endpoint" "${response}")
         LawsStdoutGet "$@"
       fi
-      echo "${Response}" >/dev/stderr
+
+      # print error to stderr
+      echo "${response}" >/dev/stderr
       exit 1
     fi
+
     # if empty file, remove
-    [ -s "${TmpFile}" ] || rm "${TmpFile}"
-    cat "${TmpFile}"
+    if [ -s "${tmpFile}" ]; then
+      cat "${tmpFile}"
+    else
+      rm -f "${tmpFile}"
+    fi
   }
 
   LawsSubCommandLs() {
     # if args contain "-h" or "--help" or "help" or ..., display README
     if CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
+
+    # if no args, list buckets, else list objects by passed bucket
     if [ "$#" = 0 ]; then
       LawsStdoutList
     else 
@@ -459,6 +483,8 @@ ERROR
   LawsSubCommandCat() {
     # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
     if [ "$#" = 0 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
+
+    # loop by the number of arguments.
     for arg in "$@"; do
       LawsStdoutGet "${arg}"
     done
@@ -467,11 +493,13 @@ ERROR
   LawsSubCommandCopy() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
     if [ "$#" -lt 2 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
+
     # copy s3 to local
     if [ -r "$1" ] && [ ! -x "$2" ]; then
       CommonStdoutLog E "LawsSubCommandCopy(): cp ( src=S3 dest=local ) is unimplemented"
       exit 1
     fi
+
     # copy local to s3
     if [ ! -x "$1" ]; then
       if [ -d "$(dirname "$2")" ]; then
@@ -498,7 +526,7 @@ ERROR
       exit 0
     fi
 
-    # prepare vars
+    # declare vars for methods
     DateYMD=$(date +'%Y%m%d')
     DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
     APIEndpoint=$(LawsStdoutAPIEndpoint s3 "$(LawsStdoutRegion)")
@@ -511,6 +539,14 @@ ERROR
     esac
   }
 
+  #
+  # Execute the main function.
+  # It is executed first in this script.
+  #
+  # $@ ... Pass all the arguments of the laws command.
+  #
+  # e.g.
+  #   main s3 ls s3://mybucket/path/tp/file
   main "$@"
 
 else
@@ -519,7 +555,10 @@ else
   # Interactive: laws as completion
   # ref: https://blog.cybozu.io/entry/2016/09/26/080000
   #
-
+  # The following functions are for shell-completion.
+  # When executing as a laws command,
+  # the following functions are not defined nor executed.
+  #
   # shellcheck disable=SC2016,SC2034,SC2039
   _laws() {
     local cur prev cword
@@ -538,6 +577,7 @@ else
         fi
         eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_previous_execution}" -- "${cur}") )'
       elif [ "${prev}" = "cp" ]; then
+        # Cache the execution result of the command for 30 seconds.
         if [ -z "${__laws_s3_cp_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_cp_completion_previous_execution_time)) -gt 30 ]; then
           __laws_s3_cp_completion_previous_execution_time=$(date +%s)
           __laws_s3_cp_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ') $(ls -d ./* ./.*)"
