@@ -7,10 +7,13 @@ if ! echo "$-" | grep -q i; then
   # Non-interactive: execute laws as command
   #
 
-  set -e
+  set -eo pipefail
 
   readonly VERSION="0.0.12"
   readonly PROGRAM_NAME="$(basename -- "$0")"
+
+  # when exit,
+  trap '[ ! -f "${tmpFile}" ] || rm -f ${tmpFile}' EXIT
 
   LawsStdoutReadMe() (
   cat <<"README" >/dev/stderr
@@ -154,7 +157,7 @@ README
   )
 
   CommonStdoutHex() (
-    printf "%s" "$1" | od -v -A n -t x1 | tr -d '[:blank:]|\n'
+    printf "%s" "$1" | od -v -A n -t x1 | tr -Cd '0123456789abcdefABCDEF'
   )
 
   CommonStdoutHMAC() (
@@ -444,7 +447,7 @@ ERROR
     # run
     tmpFile=$(mktemp)
     LawsStdoutCallAPIS3Get > "${tmpFile}"
-    response="$(cat "${tmpFile}")"
+    response=$(cat "${tmpFile}")
 
     # error or not
     if CommonContainingRegex "</Error>" "${response}"; then
@@ -459,11 +462,7 @@ ERROR
     fi
 
     # if empty file, remove
-    if [ -s "${tmpFile}" ]; then
-      cat "${tmpFile}"
-    else
-      rm -f "${tmpFile}"
-    fi
+    [ ! -s "${tmpFile}" ] || cat "${tmpFile}"
   }
 
   LawsSubCommandLs() {
@@ -492,19 +491,22 @@ ERROR
 
   LawsSubCommandCopy() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" -lt 2 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
+    if [ "$#" != 2 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
 
-    # copy s3 to local
+    # copy local to s3 (PUT)
     if [ -r "$1" ] && [ ! -x "$2" ]; then
       CommonStdoutLog E "LawsSubCommandCopy(): cp ( src=S3 dest=local ) is unimplemented"
       exit 1
     fi
 
-    # copy local to s3
+    # copy s3 to local (GET)
     if [ ! -x "$1" ]; then
-      if [ -d "$(dirname "$2")" ]; then
+      if [ -d "$(dirname "$2")" ] && [ ! -d "$2" ]; then
         LawsStdoutGet "$1" > "$2"
-        exit 0
+      elif [ -d "$2" ]; then
+        LawsStdoutGet "$1" > "$2/$(basename -- "$1")"
+      else
+        CommonStdoutLog E "not exist directory: $(dirname "$2") OR exist directory: $2/$(basename -- "$1")"
       fi
     fi
   }
