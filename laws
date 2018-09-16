@@ -9,7 +9,7 @@ if ! echo "$-" | grep -q i; then
   # Non-interactive: execute laws as command
   #
 
-  set -eo pipefail
+  set -e
 
   readonly VERSION="0.1.1"
   readonly PROGRAM_NAME="$(basename -- "$0")"
