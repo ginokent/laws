@@ -104,7 +104,6 @@ This program relies heavily on "AWS Signature Version 4".
     https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
 ;
 README
-  return 0
   )
 
   CommonStdoutDateUTC() (
@@ -485,7 +484,7 @@ ERROR
 
   LawsSubCommandLs() {
     # if args contain "-h" or "--help" or "help" or ..., display README
-    if CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
+    if CommonContainingHelpOption "$*"; then LawsStdoutReadMe; exit 0; fi
 
     # if no args, list buckets, else list objects by passed bucket
     if [ "$#" = 0 ]; then
@@ -499,7 +498,7 @@ ERROR
 
   LawsSubCommandCat() {
     # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" = 0 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
+    if [ "$#" = 0 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; exit 0; fi
 
     # loop by the number of arguments.
     for arg in "$@"; do
@@ -509,7 +508,7 @@ ERROR
 
   LawsSubCommandCopy() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" != 2 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
+    if [ "$#" != 2 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; exit 0; fi
 
     # vars
     sourcePath="${1:?"[FATAL] LawsSubCommandCopy(): requires \"sourcePath\" as \$1"}"
@@ -583,7 +582,7 @@ ERROR
        ls) shift; LawsSubCommandLs "$@" ;;
       cat) shift; LawsSubCommandCat "$@" ;;
        cp) shift; LawsSubCommandCopy "$@" ;;
-        *) LawsStdoutReadMe ;;
+        *) LawsStdoutReadMe; exit 0 ;;
     esac
   }
 
@@ -603,7 +602,7 @@ ERROR
     # check sub commands
     case "$1" in
       s3) shift && LawsSubCommandS3 "$@" ;;
-       *) LawsStdoutReadMe ;;
+       *) LawsStdoutReadMe; exit 0 ;;
     esac
   }
 
@@ -637,21 +636,19 @@ else
       if [ "${prev}" = "s3" ]; then
         eval 'COMPREPLY=( $(compgen -W "ls cat cp" -- "${cur}") )'
       fi
-    elif [ "${cword}" -eq 3 ]; then
-      if [ "${prev}" = "ls" ] || [ "${prev}" = "cat" ]; then
-        if [ -z "${__laws_s3_ls_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_previous_execution_time)) -gt 30 ]; then
-          __laws_s3_ls_completion_previous_execution_time=$(date +%s)
-          __laws_s3_ls_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
-        fi
-        eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_previous_execution}" -- "${cur}") )'
-      elif [ "${prev}" = "cp" ]; then
-        # Cache the execution result of the command for 30 seconds.
-        if [ -z "${__laws_s3_cp_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_cp_completion_previous_execution_time)) -gt 30 ]; then
-          __laws_s3_cp_completion_previous_execution_time=$(date +%s)
-          __laws_s3_cp_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ') $(ls -d ./* ./.*)"
-        fi
-        eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_previous_execution}" -- "${cur}") )'
+    elif [ "${cword}" -eq 3 ] && { [ "${prev}" = "ls" ] || [ "${prev}" = "cat" ]; }; then
+      if [ -z "${__laws_s3_ls_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_previous_execution_time)) -gt 30 ]; then
+        __laws_s3_ls_completion_previous_execution_time=$(date +%s)
+        __laws_s3_ls_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
       fi
+      eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_previous_execution}" -- "${cur}") )'
+    else
+      # Cache the execution result of the command for 30 seconds.
+      if [ -z "${__laws_s3_cp_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_cp_completion_previous_execution_time)) -gt 30 ]; then
+        __laws_s3_cp_completion_previous_execution_time=$(date +%s)
+        __laws_s3_cp_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+      fi
+      eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_previous_execution} $(ls -aCdF "${cur}"* 2>/dev/null)" -- "${cur}") )'
     fi
   }
   # shellcheck disable=SC2039
