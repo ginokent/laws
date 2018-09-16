@@ -203,7 +203,7 @@ README
     printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.* //'
   )
 
-  CommonStdoutSchemeAndSlashSlashRemoved() (
+  CommonStdoutRemoveSchemeAndSlashSlash() (
     printf "%s" "$1" | sed 's|^[^:]*://||'
   )
 
@@ -220,11 +220,11 @@ README
   )
 
   CommonStdoutExtractedHTTPHost() {
-    CommonStdoutSchemeAndSlashSlashRemoved "$1" | sed 's|/.*||'
+    CommonStdoutRemoveSchemeAndSlashSlash "$1" | sed 's|/.*||'
   }
 
   CommonStdoutExtractedHTTPPath() {
-    CommonStdoutSchemeAndSlashSlashRemoved "$1" | grep '/' | sed 's|^[^/]*/||'
+    CommonStdoutRemoveSchemeAndSlashSlash "$1" | grep '/' | sed 's|^[^/]*/||'
   }
 
   CommonStdoutUriEncoded() {
@@ -453,8 +453,11 @@ ERROR
         ;;
 
       *)
+        # vars common
+        sourcePath="$(CommonStdoutRemoveSchemeAndSlashSlash "$1")"
+
         # declare vars for methods
-        RequestPath="/$(CommonStdoutExtractedHTTPHost "$1")"
+        RequestPath="/$(CommonStdoutExtractedHTTPHost "${sourcePath}")"
         if [ -z "${MaxKeys}" ] || CommonContainingRegex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
         Prefix=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedHTTPPath "$1")")
         CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf "%s" "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf "%s" "&prefix=${Prefix}")"
@@ -476,7 +479,11 @@ ERROR
         fi
 
         # display edited response
-        CommonStdoutExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(CommonStdoutExtractedHTTPHost "$1")"'/\1|g'
+        if CommonContainingRegex "[^>]*</Key><LastModified>[^<]*" "${response}"; then
+          CommonStdoutExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(CommonStdoutExtractedHTTPHost "$1")"'/\1|g'
+        else
+          echo "${response}" > /dev/stderr
+        fi
 
         # if exist NextContinuationToken, declare ContinuationToken and run LawsStdoutList
         if CommonContainingRegex "<NextContinuationToken>[^<]*" "${response}"; then
@@ -488,10 +495,13 @@ ERROR
   }
 
   LawsStdoutGet() {
-    # declare vars for methods
+    # vars common
+    sourcePath="$(CommonStdoutRemoveSchemeAndSlashSlash "${1:?"[FATAL] LawsStdoutGet(): requires \"sourcePath\" as \$1"}")"
+
+    # vars for methods
     HTTPMethod="GET"
     HashedPayload="$(CommonStdoutSHA256Hash "")"
-    RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "$(CommonStdoutSchemeAndSlashSlashRemoved "$1")")"
+    RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "${sourcePath}")"
     CanonicalQueryString=""
 
     # run
@@ -543,21 +553,28 @@ ERROR
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
     if [ "$#" != 2 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; exit 0; fi
 
-    # vars
-    sourcePath="${1:?"[FATAL] LawsSubCommandCopy(): requires \"sourcePath\" as \$1"}"
-    destinationPath="${2:?"[FATAL] LawsSubCommandCopy(): requires \"destinationPath\" as \$2"}"
+    # vars common
+    sourcePath="$(CommonStdoutRemoveSchemeAndSlashSlash "${1:?"[FATAL] LawsSubCommandCopy(): requires \"sourcePath\" as \$1"}")"
+    destinationPath="$(CommonStdoutRemoveSchemeAndSlashSlash "${2:?"[FATAL] LawsSubCommandCopy(): requires \"destinationPath\" as \$2"}")"
+
+    # vars about bucket
     responseListBucket=$(LawsStdoutList)
-    sourceBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(CommonStdoutExtractedHTTPHost "${sourcePath}")$" ||:)
     destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(CommonStdoutExtractedHTTPHost "${destinationPath}")$" ||:)
 
-    # copy local to s3
+    # vars about path
+    responseListPath=$(LawsSubCommandLs "${sourcePath}" "${destinationPath}" 2>/dev/null ||:)
+    sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]${sourcePath}$" ||:)
+
+    # copy local to s3 (PUT)
     if [ -e "${sourcePath}" ] && [ "${destinationBucketExist}" ]; then
 
+      # vars for cURL
       HTTPMethod="PUT"
       HashedPayload="$(openssl dgst -sha256 "${sourcePath}" | sed 's/^.* //')"
-      RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "$(CommonStdoutSchemeAndSlashSlashRemoved "$2")")"
+      RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "${destinationPath}")"
       CanonicalQueryString=""
 
+      # Call API
       response=$(
         curl -ksS -X "${HTTPMethod}" \
           -H "$(LawsStdoutHeader)" \
@@ -572,7 +589,8 @@ ERROR
 
       CommonStdoutLog I "uploaded ${sourcePath} to ${destinationPath}"
 
-    elif [ "${sourceBucketExist}" ] && [ "${destinationBucketExist}" ]; then
+    # copy s3 to s3 (GET and PUT)
+    elif [ "${sourcePathExist}" ] && [ "${destinationBucketExist}" ]; then
 
       tmpFileForS3ToS3=$(mktemp)
       LawsStdoutGet "${sourcePath}" > "${tmpFileForS3ToS3}"
@@ -587,7 +605,7 @@ ERROR
       fi
 
     # copy s3 to local (GET)
-    elif [ "${sourceBucketExist}" ]; then
+    elif [ "${sourcePathExist}" ]; then
 
       if [ -d "$(dirname "${destinationPath}")" ] && [ -d "${destinationPath}" ]; then
         LawsStdoutGet "${sourcePath}" > "${destinationPath}/$(basename -- "${sourcePath}")"
@@ -602,7 +620,7 @@ ERROR
 
     else
 
-      CommonStdoutLog W "Both \"${sourcePath}\" and \"${destinationPath}\" are local files."
+      CommonStdoutLog W "\"${sourcePath}\" and \"${destinationPath}\" not found or local files."
       return 1
 
     fi
