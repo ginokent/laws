@@ -3,20 +3,30 @@
 
 # TODO: Make more readable.
 
-if ! echo "$-" | grep -q i; then
+# If in non interactive shell ( "$-" not containing "i" ), execute "laws" as command.
+if ! echo "$-" | grep -q "i"; then
 
-  #
-  # Non-interactive: execute laws as command
-  #
-
+  # If an error occurs, terminate abnormally.
   set -e
 
+  # Global variables
   readonly VERSION="0.1.2"
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
-  # when exit,
+  # When exiting, clean up temporary files.
   trap '[ ! -f "${tmpFile}" ] || rm -f ${tmpFile}; [ ! -f "${tmpFileForS3ToS3}" ] || rm -f ${tmpFileForS3ToS3}; ' EXIT
 
+  ##
+  # Output README
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   no
+  # Stderr:
+  #   string README
+  ##
   LawsStdoutReadMe() (
   cat <<"README" >/dev/stderr
 
@@ -106,10 +116,33 @@ This program relies heavily on "AWS Signature Version 4".
 README
   )
 
+  ##
+  # Output UTC date for log
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string UTC date ISO 8601 format
+  # Stderr:
+  #   no
+  ##
   CommonStdoutDateUTC() (
     LANG=C TZ=UTC date +"%Y%m%dT%H%M%SZ"
   )
 
+  ##
+  # Output log
+  # Arguments:
+  #   $1 log level
+  #   $2 log message
+  # Stdin:
+  #   no
+  # Stdout:
+  #   no
+  # Stderr:
+  #   string log
+  ##
   CommonStdoutLog() (
     level=${1:?"[FATAL] CommonStdoutLog(): requires \"level\" as \$1"}
     logMessages=${2:?"[FATAL] CommonStdoutLog(): requires \"logMessages\" as \$2"}

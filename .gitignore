@@ -2,8 +2,9 @@
 :*
 
 # ignore tmp files
-tmp
-test
 a
 b
+hoge
+tmp
+test
 
