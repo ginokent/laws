@@ -54,8 +54,8 @@ Get the contents of the file on Amazon S3.
 Copy a file.  
 
     $ laws s3 cp s3://your-bucket/path/to/file /path/to/file
-    $ (unimplemented) laws s3 cp /path/to/file s3://your-bucket/path/to/file
-    $ (unimplemented) laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
+    $ laws s3 cp /path/to/file s3://your-bucket/path/to/file
+    $ laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
 
 
 #### completion

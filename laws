@@ -1,6 +1,8 @@
 #!/bin/sh
 # shellcheck disable=SC1117
 
+# TODO: Make more readable.
+
 if ! echo "$-" | grep -q i; then
 
   #
@@ -9,11 +11,11 @@ if ! echo "$-" | grep -q i; then
 
   set -eo pipefail
 
-  readonly VERSION="0.0.12"
+  readonly VERSION="0.1.1"
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
   # when exit,
-  trap '[ ! -f "${tmpFile}" ] || rm -f ${tmpFile}' EXIT
+  trap '[ ! -f "${tmpFile}" ] || rm -f ${tmpFile}; [ ! -f "${tmpFileForS3ToS3}" ] || rm -f ${tmpFileForS3ToS3}; ' EXIT
 
   LawsStdoutReadMe() (
   cat <<"README" >/dev/stderr
@@ -73,8 +75,8 @@ Get the contents of the file on Amazon S3.
 Copy a file.  
 
     $ laws s3 cp s3://your-bucket/path/to/file /path/to/file
-    $ (unimplemented) laws s3 cp /path/to/file s3://your-bucket/path/to/file
-    $ (unimplemented) laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
+    $ laws s3 cp /path/to/file s3://your-bucket/path/to/file
+    $ laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
 
 
 #### completion
@@ -143,6 +145,7 @@ README
     for cmd in "$@"; do
       if ! command -v -- "${cmd}" >/dev/null; then
         CommonStdoutLog E "CommonCheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
+        # If command not found in PATH, it terminates abnormally immediately.
         exit 1
       fi
     done
@@ -196,6 +199,7 @@ README
     contents="$1"
     if CommonContainingMultiBytesChar "${contents}"; then
       CommonStdoutLog E "containing multi bytes char"
+      # If multi-byte characters are included, abnormal termination immediately.
       exit 1
     fi
     LC_COLLATE=C
@@ -216,6 +220,7 @@ README
     contents="$1"
     if CommonContainingMultiBytesChar "${contents}"; then
       CommonStdoutLog E "containing multi bytes char"
+      # If multi-byte characters are included, abnormal termination immediately.
       exit 1
     fi
     LC_COLLATE=C
@@ -268,6 +273,7 @@ Follow the steps below to register AWS region:
 ;
 ERROR
       )"
+      # If a region is not specified, abnormally terminates immediately.
       exit 1
     fi
   )
@@ -332,16 +338,22 @@ Follow the steps below to register your credentials:
 ;
 ERROR
         )"
+      # If the secret key can not be acquired, the abnormal end immediately.
       exit 1
       fi
     fi
   }
 
-  LawsStdoutCanonicalHeader() {
+  LawsStdoutHeader() {
     printf "%s\n" "host:${APIEndpoint}"
-    printf "%s\n" "x-amz-content-sha256:$(CommonStdoutSHA256Hash "${Payload}")"
+    [ "${HTTPMethod}" != PUT ] || printf "%s\n" "content-type:text/plain" # PUT
+    printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
     printf "%s\n" "x-amz-date:${DateISO8601}"
     [ -z "${STSToken}" ] || printf "%s\n" "x-amz-security-token:${STSToken}"
+  }
+
+  LawsStdoutCanonicalHeader() {
+    LawsStdoutHeader | sort
   }
 
   LawsStdoutCanonicalRequest() {
@@ -351,7 +363,7 @@ ERROR
     printf "%s\n" "$(LawsStdoutCanonicalHeader)"
     printf "%s\n" "" # blank lines are required
     printf "%s\n" "$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
-    printf "%s\n" "$(CommonStdoutSHA256Hash "${Payload}")"
+    printf "%s\n" "${HashedPayload}"
   }
 
   LawsStdoutStringtoSign() {
@@ -390,6 +402,10 @@ ERROR
   }
 
   LawsStdoutList() {
+    # declare vars for methods
+    HTTPMethod="GET"
+    HashedPayload="$(CommonStdoutSHA256Hash "")"
+
     # check sub commands
     case "$1" in
       "") # when $# = 0
@@ -399,7 +415,7 @@ ERROR
         # check error
         if CommonContainingRegex "</Error>" "${response}"; then
           echo "${response}" >/dev/stderr
-          exit 1
+          return 1
         fi
         echo "${response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
         ;;
@@ -424,7 +440,7 @@ ERROR
 
           # print error to stderr
           echo "${response}" >/dev/stderr
-          exit 1
+          return 1
         fi
 
         # display edited response
@@ -441,6 +457,8 @@ ERROR
 
   LawsStdoutGet() {
     # declare vars for methods
+    HTTPMethod="GET"
+    HashedPayload="$(CommonStdoutSHA256Hash "")"
     RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "$(CommonStdoutSchemeAndSlashSlashRemoved "$1")")"
     CanonicalQueryString=""
 
@@ -458,7 +476,7 @@ ERROR
 
       # print error to stderr
       echo "${response}" >/dev/stderr
-      exit 1
+      return 1
     fi
 
     # if empty file, remove
@@ -493,30 +511,78 @@ ERROR
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
     if [ "$#" != 2 ] || CommonContainingHelpOption "$*"; then LawsStdoutReadMe; fi
 
-    # copy local to s3 (PUT)
-    if [ -r "$1" ] && [ ! -x "$2" ]; then
-      CommonStdoutLog E "LawsSubCommandCopy(): cp ( src=S3 dest=local ) is unimplemented"
-      exit 1
-    fi
+    # vars
+    sourcePath="${1:?"[FATAL] LawsSubCommandCopy(): requires \"sourcePath\" as \$1"}"
+    destinationPath="${2:?"[FATAL] LawsSubCommandCopy(): requires \"destinationPath\" as \$2"}"
+    responseListBucket=$(LawsStdoutList)
+    sourceBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(CommonStdoutExtractedHTTPHost "${sourcePath}")$" ||:)
+    destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(CommonStdoutExtractedHTTPHost "${destinationPath}")$" ||:)
+
+    # copy local to s3
+    if [ -e "${sourcePath}" ] && [ "${destinationBucketExist}" ]; then
+
+      HTTPMethod="PUT"
+      HashedPayload="$(openssl dgst -sha256 "${sourcePath}" | sed 's/^.* //')"
+      RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "$(CommonStdoutSchemeAndSlashSlashRemoved "$2")")"
+      CanonicalQueryString=""
+
+      response=$(
+        curl -ksS -X "${HTTPMethod}" \
+          -H "$(LawsStdoutHeader)" \
+          -H "Authorization: $(LawsStdoutAuthorization)" \
+          -T "${sourcePath}" \
+          "https://${APIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
+      )
+
+      if CommonContainingRegex "</Error>" "${response}"; then
+        return 1
+      fi
+
+      CommonStdoutLog I "uploaded ${sourcePath} to ${destinationPath}"
+
+    elif [ "${sourceBucketExist}" ] && [ "${destinationBucketExist}" ]; then
+
+      tmpFileForS3ToS3=$(mktemp)
+      LawsStdoutGet "${sourcePath}" > "${tmpFileForS3ToS3}"
+      response=$(LawsSubCommandCopy "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
+
+      # If the tmp file can be uploaded, output the appropriate log.
+      if CommonContainingRegex "uploaded.*${destinationPath}" "${response}"; then
+        CommonStdoutLog I "uploaded ${sourcePath} to ${destinationPath}"
+      # Otherwise, it outputs the original response.
+      else
+        echo "${response}" > /dev/stderr
+      fi
 
     # copy s3 to local (GET)
-    if [ ! -x "$1" ]; then
-      if [ -d "$(dirname "$2")" ] && [ ! -d "$2" ]; then
-        LawsStdoutGet "$1" > "$2"
-      elif [ -d "$2" ]; then
-        LawsStdoutGet "$1" > "$2/$(basename -- "$1")"
+    elif [ "${sourceBucketExist}" ]; then
+
+      if [ -d "$(dirname "${destinationPath}")" ] && [ -d "${destinationPath}" ]; then
+        LawsStdoutGet "${sourcePath}" > "${destinationPath}/$(basename -- "${sourcePath}")"
+      elif [ -d "$(dirname "${destinationPath}")" ] && [ ! -d "${destinationPath}" ]; then
+        LawsStdoutGet "${sourcePath}" > "${destinationPath}"
       else
-        CommonStdoutLog E "not exist directory: $(dirname "$2") OR exist directory: $2/$(basename -- "$1")"
+        CommonStdoutLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${sourcePath}\"")"
+        return 1
       fi
+
+      CommonStdoutLog I "downloaded ${sourcePath} to ${destinationPath}"
+
+    else
+
+      CommonStdoutLog W "Both \"${sourcePath}\" and \"${destinationPath}\" are local files."
+      return 1
+
     fi
+
   }
 
   LawsSubCommandS3() {
     # check sub commands
     case "$1" in
-       ls) shift; HTTPMethod="GET"; Payload=""; LawsSubCommandLs "$@" ;;
-      cat) shift; HTTPMethod="GET"; Payload=""; LawsSubCommandCat "$@" ;;
-       cp) shift && LawsSubCommandCopy "$@" ;;
+       ls) shift; LawsSubCommandLs "$@" ;;
+      cat) shift; LawsSubCommandCat "$@" ;;
+       cp) shift; LawsSubCommandCopy "$@" ;;
         *) LawsStdoutReadMe ;;
     esac
   }
@@ -525,7 +591,7 @@ ERROR
     # display version
     if CommonContainingRegex "-V|\-*version" "$*"; then
       echo "${PROGRAM_NAME} ${VERSION}"
-      exit 0
+      return 0
     fi
 
     # declare vars for methods
