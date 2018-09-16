@@ -11,7 +11,7 @@ if ! echo "$-" | grep -q i; then
 
   set -e
 
-  readonly VERSION="0.1.1"
+  readonly VERSION="0.1.2"
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
   # when exit,
