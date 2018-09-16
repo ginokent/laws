@@ -48,3 +48,26 @@ if ("${PROGRAM}" s3 cat "s3://$(MaxKeys=1000 "${PROGRAM}" s3 ls "s3://$("${PROGR
 else
   echo; printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == Get objects Failed ================"; exit 1
 fi
+
+#
+# PUT
+#
+printf "\e[1;37m%s\e[0m\n" "$(LANG=C date) [TEST]  -- Copy (PUT/GET) object Testing ----------------"
+put=$(date +%s | tee ./b)
+# local to s3
+"${PROGRAM}" s3 cp ./b "s3://$("${PROGRAM}" s3 ls | grep -Ev '^$|\$' | tail -1 | sed s/[^[:blank:]]*[[:blank:]]*//)/tmp/date" >/dev/stderr
+# s3 to local
+"${PROGRAM}" s3 cp "s3://$("${PROGRAM}" s3 ls | grep -Ev '^$|\$' | tail -1 | sed s/[^[:blank:]]*[[:blank:]]*//)/tmp/date" ./a >/dev/stderr
+get=$(cat ./a)
+current=$(date +%s)
+echo "put content  : ${put}"
+echo "get content  : ${get}"
+echo "current time : ${current}"
+echo "delta time   : $((current-put))"
+if [ ${put:="0"} = ${get:="1"} ] && [ $((current-put)) -le 10 ]; then
+  echo; printf "\n\e[1;32m%s\e[0m\n" "`LANG=C date` [INFO]  -- Copy (PUT/GET) objects Passed ----------------"
+else
+  echo; printf "\e[1;31m%s\e[0m\n" "`LANG=C date` [ERROR] == Copy (PUT/GET) objects Failed ================"; exit 1
+fi
+
+

@@ -1,5 +1,9 @@
+# ignore vim typo files
+:*
+
 # ignore tmp files
 tmp
 test
 a
 b
+
