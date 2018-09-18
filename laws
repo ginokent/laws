@@ -555,7 +555,7 @@ README
   #   0 success to encode
   #   1 ContainMultiBytesChar, EXIT immediately
   ##
-  LawsStdoutRegion() { (
+  PrintAWSRegion() { (
     # 1. environment variable: AWS_REGION
     [ -z "${AWS_REGION}" ] || { echo "${AWS_REGION}"; return 0; }
 
@@ -566,7 +566,7 @@ README
       if [ "${INI_region}" ]; then
         echo "${INI_region}"
       else
-        PrintErrLog W "LawsStdoutRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
+        PrintErrLog W "PrintAWSRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
       fi
     fi
 
@@ -574,7 +574,7 @@ README
     if ! curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; then
       PrintErrLog E "$(cat <<"ERROR"
 
-LawsStdoutRegion(): Not specified AWS Region
+PrintAWSRegion(): Not specified AWS Region
 Follow the steps below to register AWS region:
 
 1. Save config as: ~/.aws/config
@@ -596,10 +596,29 @@ ERROR
     fi
   )}
 
-  LawsStdoutAPIEndpoint() { (
-    [ -z "${APIEndpoint}" ] || { echo "${APIEndpoint}"; return 0; }
-    service="${1:?"$(PrintErrLog F "LawsStdoutAPIEndpoint(): requires \"service\" as \$1")"}"
-    region="${2:?"$(PrintErrLog F "LawsStdoutAPIEndpoint(): requires \"region\" as \$2")"}"
+  ##
+  # Print "AWS API Endpoint" aquired by Service Name AND AWS Region
+  # If already "AWSAPIEndpoint" defined, return normally without doing anything
+  # EnvironmentVariables:
+  #   AWSAPIEndpoint option
+  #   AWS_REGION option
+  # Arguments:
+  #   $1 Service Name
+  #   $2 AWS Region
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string uri encoded
+  # Stderr:
+  #   no
+  # Return:
+  #   0 success to encode
+  #   1 ContainMultiBytesChar, EXIT immediately
+  ##
+  PrintAWSAPIEndpoint() { (
+    [ -z "${AWSAPIEndpoint}" ] || { echo "${AWSAPIEndpoint}"; return 0; }
+    service="${1:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"service\" as \$1")"}"
+    region="${2:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"region\" as \$2")"}"
     case "${service}" in
       s3) [ "${region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${region}.amazonaws.com" ;;
        *) PrintErrLog E "${service} not support"; return 1 ;;
@@ -664,7 +683,7 @@ ERROR
   }
 
   LawsStdoutHeader() {
-    printf "%s\n" "host:${APIEndpoint}"
+    printf "%s\n" "host:${AWSAPIEndpoint}"
     [ "${HTTPMethod}" != PUT ] || printf "%s\n" "content-type:text/plain" # PUT
     printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
     printf "%s\n" "x-amz-date:${DateISO8601}"
@@ -688,7 +707,7 @@ ERROR
   LawsStdoutStringtoSign() {
     printf "%s\n" "AWS4-HMAC-SHA256"
     printf "%s\n" "${DateISO8601}"
-    printf "%s\n" "${DateYMD}/$(LawsStdoutRegion)/s3/aws4_request"
+    printf "%s\n" "${DateYMD}/$(PrintAWSRegion)/s3/aws4_request"
     printf "%s\n" "$(ConvertSHA256Hash "$(LawsStdoutCanonicalRequest)")"
   }
 
@@ -700,7 +719,7 @@ ERROR
             ConvertHMAC "$(
               ConvertHex "AWS4${SecretAccessKey}"
             )" "${DateYMD}"
-          )" "$(LawsStdoutRegion)"
+          )" "$(PrintAWSRegion)"
         )" "s3"
       )" "aws4_request"
     )" "$(LawsStdoutStringtoSign)"
@@ -708,7 +727,7 @@ ERROR
 
   LawsStdoutAuthorization() {
     printf '%s' "AWS4-HMAC-SHA256"
-    printf '%s' " Credential=${AccessKeyId}/${DateYMD}/$(LawsStdoutRegion)/s3/aws4_request,"
+    printf '%s' " Credential=${AccessKeyId}/${DateYMD}/$(PrintAWSRegion)/s3/aws4_request,"
     printf '%s' " SignedHeaders=$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
     printf '%s' " Signature=$(LawsStdoutSignature)"
   }
@@ -717,7 +736,7 @@ ERROR
     curl -ksS -X "${HTTPMethod}" \
       -H "$(LawsStdoutCanonicalHeader)" \
       -H "Authorization: $(LawsStdoutAuthorization)" \
-      "https://${APIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")"
+      "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")"
   }
 
   LawsStdoutList() {
@@ -754,9 +773,9 @@ ERROR
 
         # if error
         if ContainRegex '</Error>' "${response}"; then
-          # if exist PermanentRedirect, declare new APIEndpoint and run LawsStdoutList
+          # if exist PermanentRedirect, declare new AWSAPIEndpoint and run LawsStdoutList
           if ContainRegex "<Code>PermanentRedirect</Code>" "${response}"; then
-            APIEndpoint=$(PrintExtractedXMLValue "Endpoint" "${response}")
+            AWSAPIEndpoint=$(PrintExtractedXMLValue "Endpoint" "${response}")
             LawsStdoutList "$@"
           fi
 
@@ -799,7 +818,7 @@ ERROR
     # error or not
     if ContainRegex '</Error>' "${response}"; then
       if ContainRegex "<Code>PermanentRedirect</Code>" "${response}"; then
-        APIEndpoint=$(PrintExtractedXMLValue "Endpoint" "${response}")
+        AWSAPIEndpoint=$(PrintExtractedXMLValue "Endpoint" "${response}")
         LawsStdoutGet "$@"
       fi
 
@@ -867,7 +886,7 @@ ERROR
           -H "$(LawsStdoutHeader)" \
           -H "Authorization: $(LawsStdoutAuthorization)" \
           -T "${sourcePath}" \
-          "https://${APIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
+          "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
       )
 
       if ContainRegex '</Error>' "${response}"; then
@@ -935,7 +954,7 @@ ERROR
     # declare vars for methods
     DateYMD=$(date +'%Y%m%d')
     DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
-    APIEndpoint=$(LawsStdoutAPIEndpoint s3 "$(LawsStdoutRegion)")
+    AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
     LawsSetAccessKey
 
     # check sub commands
