@@ -1,7 +1,7 @@
 #!/bin/sh
 # shellcheck disable=SC1117
 
-# TODO: Make more readable.
+# TODO: make more readable.
 
 # If in non interactive shell ( "$-" not containing "i" ), execute "laws" as command.
 if ! { echo "$-" | grep -q 'i'; }; then
@@ -191,10 +191,10 @@ README
   #   1 NOT containing
   ##
   ContainMultiBytesChar() {(
-    # vars
+    # Local vars
     contents="$1"
 
-    # check containing
+    # Check containing
     if { echo "${contents}" | LANG=C grep -Evq '^[[:cntrl:][:print:]]*$'; }; then
       return 0
     fi
@@ -202,7 +202,7 @@ README
   )}
 
   ##
-  # check containing regex passed
+  # Check containing regex passed
   # Arguments:
   #   $1 regex pattern
   #   $2 content to be checked by pattern
@@ -217,11 +217,11 @@ README
   #   1 NOT containing
   ##
   ContainRegex() {(
-    # vars
+    # Local vars
     pattern="${1:?"$(PrintErrLog F "ContainRegex(): requires \"pattern\" as \$1")"}"
     contents="$2"
 
-    # check containing
+    # Check containing
     if { echo "${contents}" | grep -Eq -- "${pattern}"; }; then
       return 0
     fi
@@ -252,7 +252,7 @@ README
   )}
 
   ##
-  # check existing dependency commands in PATH
+  # Check existing dependency commands in PATH
   # Arguments:
   #   $@ commands
   # Stdin:
@@ -283,7 +283,7 @@ README
   # Stdin:
   #   no
   # Stdout:
-  #   rarsed ini content as shell vars
+  #   string rarsed ini content as shell vars
   # Stderr:
   #   no
   # Return:
@@ -304,13 +304,13 @@ README
   )}
 
   ##
-  # convert hexadecimal
+  # Convert hexadecimal
   # Arguments:
   #   $1 content converted to hexadecimal
   # Stdin:
   #   no
   # Stdout:
-  #   converted hexadecimal data
+  #   string converted hexadecimal data
   # Stderr:
   #   no
   # Return:
@@ -321,34 +321,73 @@ README
   )}
 
   ##
-  # convert $2 (sha256 HMAC) by $1
+  # Convert $2 (sha256 HMAC) by $1
   # Arguments:
   #   $1 HEXADECIMAL key
   #   $2 contents be converted
   # Stdin:
   #   no
   # Stdout:
-  #   converted data
+  #   string converted data
   # Stderr:
   #   no
   # Return:
   #   0 always
   ##
   ConvertHMAC() {(
-    printf '%s' "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.* //'
+    printf '%s' "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.*[[:blank:]]//'
   )}
 
-  CommonStdoutSHA256Hash() {(
-    printf '%s' "$1" | openssl dgst -sha256 | sed 's/^.* //'
+  ##
+  # Convert $1 by sha256
+  # Arguments:
+  #   $1 data
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string converted data
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  ConvertSHA256Hash() {(
+    printf '%s' "$1" | openssl dgst -sha256 | sed 's/^.*[[:blank:]]//'
   )}
 
-  CommonStdoutRemoveSchemeAndSlashSlash() {(
+  ##
+  # Print string scheme+slash+slash ( like http:// https:// s3:// ssh:// ... ) removed
+  # Arguments:
+  #   $1 data
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string removed "s3://"
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintSchemeSlashSlashRemoved() {(
     printf '%s' "$1" | sed 's|^[^:]*://||'
   )}
 
-  CommonStdoutExtractedByPattern() {(
-    pattern="${1:?"$(PrintErrLog F "CommonStdoutExtractedByPattern(): requires \"pattern\" as \$1")"}"
-    contents="${2:?"$(PrintErrLog F "CommonStdoutExtractedByPattern(): requires \"contents\" as \$2")"}"
+  ##
+  # Print string extracted by pattern
+  # Arguments:
+  #   $1 data
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string extracted by pattern
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintExtractedByPattern() {(
+    pattern="${1:?"$(PrintErrLog F "PrintExtractedByPattern(): requires \"pattern\" as \$1")"}"
+    contents="${2:?"$(PrintErrLog F "PrintExtractedByPattern(): requires \"contents\" as \$2")"}"
     echo "${contents}" | grep -Eo -- "${pattern}"
   )}
 
@@ -359,11 +398,11 @@ README
   )}
 
   CommonStdoutExtractedHTTPHost() {
-    CommonStdoutRemoveSchemeAndSlashSlash "$1" | sed 's|/.*||'
+    PrintSchemeSlashSlashRemoved "$1" | sed 's|/.*||'
   }
 
   CommonStdoutExtractedHTTPPath() {
-    CommonStdoutRemoveSchemeAndSlashSlash "$1" | grep '/' | sed 's|^[^/]*/||'
+    PrintSchemeSlashSlashRemoved "$1" | grep '/' | sed 's|^[^/]*/||'
   }
 
   CommonStdoutUriEncoded() {
@@ -543,7 +582,7 @@ ERROR
     printf "%s\n" "AWS4-HMAC-SHA256"
     printf "%s\n" "${DateISO8601}"
     printf "%s\n" "${DateYMD}/$(LawsStdoutRegion)/s3/aws4_request"
-    printf "%s\n" "$(CommonStdoutSHA256Hash "$(LawsStdoutCanonicalRequest)")"
+    printf "%s\n" "$(ConvertSHA256Hash "$(LawsStdoutCanonicalRequest)")"
   }
 
   LawsStdoutSignature() {
@@ -577,7 +616,7 @@ ERROR
   LawsStdoutList() {
     # declare vars for methods
     HTTPMethod="GET"
-    HashedPayload="$(CommonStdoutSHA256Hash "")"
+    HashedPayload="$(ConvertSHA256Hash "")"
 
     # check sub commands
     case "$1" in
@@ -595,7 +634,7 @@ ERROR
 
       *)
         # vars common
-        sourcePath="$(CommonStdoutRemoveSchemeAndSlashSlash "$1")"
+        sourcePath="$(PrintSchemeSlashSlashRemoved "$1")"
 
         # declare vars for methods
         RequestPath="/$(CommonStdoutExtractedHTTPHost "${sourcePath}")"
@@ -621,7 +660,7 @@ ERROR
 
         # display edited response
         if ContainRegex "[^>]*</Key><LastModified>[^<]*" "${response}"; then
-          CommonStdoutExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(CommonStdoutExtractedHTTPHost "$1")"'/\1|g'
+          PrintExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(CommonStdoutExtractedHTTPHost "$1")"'/\1|g'
         else
           echo "${response}" > /dev/stderr
         fi
@@ -637,11 +676,11 @@ ERROR
 
   LawsStdoutGet() {
     # vars common
-    sourcePath="$(CommonStdoutRemoveSchemeAndSlashSlash "${1:?"$(PrintErrLog F "LawsStdoutGet(): requires \"sourcePath\" as \$1")"}")"
+    sourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsStdoutGet(): requires \"sourcePath\" as \$1")"}")"
 
     # vars for methods
     HTTPMethod="GET"
-    HashedPayload="$(CommonStdoutSHA256Hash "")"
+    HashedPayload="$(ConvertSHA256Hash "")"
     RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "${sourcePath}")"
     CanonicalQueryString=""
 
@@ -695,8 +734,8 @@ ERROR
     if [ "$#" != 2 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
 
     # vars common
-    sourcePath="$(CommonStdoutRemoveSchemeAndSlashSlash "${1:?"$(PrintErrLog F "LawsSubCommandCopy(): requires \"sourcePath\" as \$1")"}")"
-    destinationPath="$(CommonStdoutRemoveSchemeAndSlashSlash "${2:?"$(PrintErrLog F "LawsSubCommandCopy(): requires \"destinationPath\" as \$2")"}")"
+    sourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsSubCommandCopy(): requires \"sourcePath\" as \$1")"}")"
+    destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsSubCommandCopy(): requires \"destinationPath\" as \$2")"}")"
 
     # vars about bucket
     responseListBucket=$(LawsStdoutList)
@@ -711,7 +750,7 @@ ERROR
 
       # vars for cURL
       HTTPMethod="PUT"
-      HashedPayload="$(openssl dgst -sha256 "${sourcePath}" | sed 's/^.* //')"
+      HashedPayload="$(openssl dgst -sha256 "${sourcePath}" | sed 's/^.*[[:blank:]]//')"
       RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "${destinationPath}")"
       CanonicalQueryString=""
 
