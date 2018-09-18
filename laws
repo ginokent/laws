@@ -412,15 +412,41 @@ README
   # Return:
   #   0 always
   ##
-  PrintExtractedHTTPHost() {
+  PrintExtractedHTTPHost() { (
     PrintSchemeSlashSlashRemoved "$1" | sed 's|/.*||'
-  }
+  )}
 
-  CommonStdoutExtractedHTTPPath() {
+  ##
+  # Print string extracted HTTP path
+  # Arguments:
+  #   $1 uri
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string extracted path
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintExtractedHTTPPath() { (
     PrintSchemeSlashSlashRemoved "$1" | grep '/' | sed 's|^[^/]*/||'
-  }
+  )}
 
-  CommonStdoutUriEncoded() {
+  ##
+  # Print string uri encoded
+  # Arguments:
+  #   $1 uri
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string uri encoded
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  CommonStdoutUriEncoded() { (
     data="$1"
     if ContainMultiBytesChar "${data}"; then
       PrintErrLog E "containing multi bytes char"
@@ -430,8 +456,9 @@ README
     LC_COLLATE=C
     # shellcheck disable=SC2059
     printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
+      # shellcheck disable=SC1001
       case "$LINE" in
-        [[:alnum:].~_-])
+        [[:alnum:]~_\.\-])
           printf '%s' "$LINE"
           ;;
         *)
@@ -439,7 +466,7 @@ README
           ;;
       esac
     done
-  }
+  )}
 
   CommonStdoutUriEncodedWithoutSlash() {
     data="$1"
@@ -653,7 +680,7 @@ ERROR
         # declare vars for methods
         RequestPath="/$(PrintExtractedHTTPHost "${sourcePath}")"
         if [ -z "${MaxKeys}" ] || ContainRegex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
-        Prefix=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedHTTPPath "$1")")
+        Prefix=$(CommonStdoutUriEncoded "$(PrintExtractedHTTPPath "$1")")
         CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
         # run
