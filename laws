@@ -192,10 +192,10 @@ README
   ##
   ContainMultiBytesChar() {(
     # Local vars
-    contents="$1"
+    data="$1"
 
     # Check containing
-    if { echo "${contents}" | LANG=C grep -Evq '^[[:cntrl:][:print:]]*$'; }; then
+    if { echo "${data}" | LANG=C grep -Evq '^[[:cntrl:][:print:]]*$'; }; then
       return 0
     fi
     return 1
@@ -219,10 +219,10 @@ README
   ContainRegex() {(
     # Local vars
     pattern="${1:?"$(PrintErrLog F "ContainRegex(): requires \"pattern\" as \$1")"}"
-    contents="$2"
+    data="$2"
 
     # Check containing
-    if { echo "${contents}" | grep -Eq -- "${pattern}"; }; then
+    if { echo "${data}" | grep -Eq -- "${pattern}"; }; then
       return 0
     fi
     return 1
@@ -324,7 +324,7 @@ README
   # Convert $2 (sha256 HMAC) by $1
   # Arguments:
   #   $1 HEXADECIMAL key
-  #   $2 contents be converted
+  #   $2 data be converted
   # Stdin:
   #   no
   # Stdout:
@@ -387,17 +387,44 @@ README
   ##
   PrintExtractedByPattern() {(
     pattern="${1:?"$(PrintErrLog F "PrintExtractedByPattern(): requires \"pattern\" as \$1")"}"
-    contents="${2:?"$(PrintErrLog F "PrintExtractedByPattern(): requires \"contents\" as \$2")"}"
-    echo "${contents}" | grep -Eo -- "${pattern}"
+    data="${2:?"$(PrintErrLog F "PrintExtractedByPattern(): requires \"data\" as \$2")"}"
+    echo "${data}" | grep -Eo -- "${pattern}"
   )}
 
-  CommonStdoutExtractedXMLValue() {(
-    tagName="${1:?"$(PrintErrLog F "CommonStdoutExtractedXMLValue(): requires \"tagName\" as \$1")"}"
-    contents="${2:?"$(PrintErrLog F "CommonStdoutExtractedXMLValue(): requires \"contents\" as \$2")"}"
-    echo "${contents}" | grep -Eo "<${tagName}>.*</${tagName}>" | sed "s|</*${tagName}>||g"
+  ##
+  # Print string extracted XML value
+  # Arguments:
+  #   $1 XML tag
+  #   $2 extracted data
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string extracted by XML tag
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintExtractedXMLValue() {(
+    tagName="${1:?"$(PrintErrLog F "PrintExtractedXMLValue(): requires \"tagName\" as \$1")"}"
+    data="${2:?"$(PrintErrLog F "PrintExtractedXMLValue(): requires \"data\" as \$2")"}"
+    echo "${data}" | grep -Eo "<${tagName}>.*</${tagName}>" | sed "s|</?${tagName}>||g"
   )}
 
-  CommonStdoutExtractedHTTPHost() {
+  ##
+  # Print string extracted HTTP host
+  # Arguments:
+  #   $1 uri
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string extracted host
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintExtractedHTTPHost() {
     PrintSchemeSlashSlashRemoved "$1" | sed 's|/.*||'
   }
 
@@ -406,8 +433,8 @@ README
   }
 
   CommonStdoutUriEncoded() {
-    contents="$1"
-    if ContainMultiBytesChar "${contents}"; then
+    data="$1"
+    if ContainMultiBytesChar "${data}"; then
       PrintErrLog E "containing multi bytes char"
       # If multi-byte characters are included, abnormal termination immediately.
       exit 1
@@ -427,8 +454,8 @@ README
   }
 
   CommonStdoutUriEncodedWithoutSlash() {
-    contents="$1"
-    if ContainMultiBytesChar "${contents}"; then
+    data="$1"
+    if ContainMultiBytesChar "${data}"; then
       PrintErrLog E "containing multi bytes char"
       # If multi-byte characters are included, abnormal termination immediately.
       exit 1
@@ -637,7 +664,7 @@ ERROR
         sourcePath="$(PrintSchemeSlashSlashRemoved "$1")"
 
         # declare vars for methods
-        RequestPath="/$(CommonStdoutExtractedHTTPHost "${sourcePath}")"
+        RequestPath="/$(PrintExtractedHTTPHost "${sourcePath}")"
         if [ -z "${MaxKeys}" ] || ContainRegex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
         Prefix=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedHTTPPath "$1")")
         CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
@@ -649,7 +676,7 @@ ERROR
         if ContainRegex '</Error>' "${response}"; then
           # if exist PermanentRedirect, declare new APIEndpoint and run LawsStdoutList
           if ContainRegex "<Code>PermanentRedirect</Code>" "${response}"; then
-            APIEndpoint=$(CommonStdoutExtractedXMLValue "Endpoint" "${response}")
+            APIEndpoint=$(PrintExtractedXMLValue "Endpoint" "${response}")
             LawsStdoutList "$@"
           fi
 
@@ -660,14 +687,14 @@ ERROR
 
         # display edited response
         if ContainRegex "[^>]*</Key><LastModified>[^<]*" "${response}"; then
-          PrintExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(CommonStdoutExtractedHTTPHost "$1")"'/\1|g'
+          PrintExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
         else
           echo "${response}" > /dev/stderr
         fi
 
         # if exist NextContinuationToken, declare ContinuationToken and run LawsStdoutList
         if ContainRegex "<NextContinuationToken>[^<]*" "${response}"; then
-          ContinuationToken=$(CommonStdoutUriEncoded "$(CommonStdoutExtractedXMLValue "NextContinuationToken" "${response}")")
+          ContinuationToken=$(CommonStdoutUriEncoded "$(PrintExtractedXMLValue "NextContinuationToken" "${response}")")
           LawsStdoutList "$@"
         fi
         ;;
@@ -692,7 +719,7 @@ ERROR
     # error or not
     if ContainRegex '</Error>' "${response}"; then
       if ContainRegex "<Code>PermanentRedirect</Code>" "${response}"; then
-        APIEndpoint=$(CommonStdoutExtractedXMLValue "Endpoint" "${response}")
+        APIEndpoint=$(PrintExtractedXMLValue "Endpoint" "${response}")
         LawsStdoutGet "$@"
       fi
 
@@ -739,7 +766,7 @@ ERROR
 
     # vars about bucket
     responseListBucket=$(LawsStdoutList)
-    destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(CommonStdoutExtractedHTTPHost "${destinationPath}")$" ||:)
+    destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" ||:)
 
     # vars about path
     responseListPath=$(LawsSubCommandLs "${sourcePath}" "${destinationPath}" 2>/dev/null ||:)
