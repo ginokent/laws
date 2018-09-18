@@ -1,9 +1,19 @@
 SHELL := /bin/bash
 GIT_ROOT_DIR := $(shell echo "`pwd`/`git rev-parse --show-cdup`")
+HOST := $(shell echo ${HOST})
 
-.PHONY: readme release syntax test test.sh
+.PHONY: init readme release release-force syntax test test-ec2
 
-test: init readme syntax test.sh
+##
+# test
+##
+test: init readme syntax
+	@time ./.tools/test.sh
+
+test-ec2:
+	@./.tools/test-ec2.sh
+
+test-all: test test-ec2
 
 init:
 	@cp -af "${GIT_ROOT_DIR}/.tools/git/hooks/pre-commit" "${GIT_ROOT_DIR}/.git/hooks/pre-commit"
@@ -18,12 +28,12 @@ readme:
 syntax:
 	@./.tools/syntax.sh
 
-test.sh:
-	@time ./.tools/test.sh
-
+##
+# release
+##
 release: test
 	@./.tools/release.sh
 
-force-release: test
-	git tag -d $(shell laws version | sed s/^[^[:blank:]]*[[:blank:]]//) && git push origin :$(shell laws version | sed s/^[^[:blank:]]*[[:blank:]]//)
+release-force: test
+	git tag -d `laws version | sed s/^[^[:blank:]]*[[:blank:]]//` && git push origin :`laws version | sed s/^[^[:blank:]]*[[:blank:]]//`
 	@./.tools/release.sh

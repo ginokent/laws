@@ -434,7 +434,7 @@ README
   )}
 
   ##
-  # Print string uri encoded
+  # Encode uri string
   # Arguments:
   #   $1 uri
   # Stdin:
@@ -444,9 +444,10 @@ README
   # Stderr:
   #   no
   # Return:
-  #   0 always
+  #   0 success to encode
+  #   1 ContainMultiBytesChar, EXIT immediately
   ##
-  CommonStdoutUriEncoded() { (
+  EncodeUri() { (
     data="$1"
     if ContainMultiBytesChar "${data}"; then
       PrintErrLog E "containing multi bytes char"
@@ -456,9 +457,8 @@ README
     LC_COLLATE=C
     # shellcheck disable=SC2059
     printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
-      # shellcheck disable=SC1001
       case "$LINE" in
-        [0-9A-Za-z~_\.\-])
+        [0-9A-Za-z._~-])
           printf '%s' "$LINE"
           ;;
         *)
@@ -468,7 +468,21 @@ README
     done
   )}
 
-  CommonStdoutUriEncodedWithoutSlash() {
+  ##
+  # Encode uri string without slash /
+  # Arguments:
+  #   $1 uri
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string uri encoded
+  # Stderr:
+  #   no
+  # Return:
+  #   0 success to encode
+  #   1 ContainMultiBytesChar, EXIT immediately
+  ##
+  EncodeUriWithoutSlash() { (
     data="$1"
     if ContainMultiBytesChar "${data}"; then
       PrintErrLog E "containing multi bytes char"
@@ -479,7 +493,7 @@ README
     # shellcheck disable=SC2059
     printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
       case "$LINE" in
-        /|[[:alnum:].~_-])
+        [/0-9A-Za-z._~-])
           printf '%s' "$LINE"
           ;;
         *)
@@ -487,7 +501,7 @@ README
           ;;
       esac
     done
-  }
+  )}
 
   LawsStdoutRegion() { (
     # 1. environment variable: AWS_REGION
@@ -680,7 +694,7 @@ ERROR
         # declare vars for methods
         RequestPath="/$(PrintExtractedHTTPHost "${sourcePath}")"
         if [ -z "${MaxKeys}" ] || ContainRegex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
-        Prefix=$(CommonStdoutUriEncoded "$(PrintExtractedHTTPPath "$1")")
+        Prefix=$(EncodeUri "$(PrintExtractedHTTPPath "$1")")
         CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
         # run
@@ -708,7 +722,7 @@ ERROR
 
         # if exist NextContinuationToken, declare ContinuationToken and run LawsStdoutList
         if ContainRegex "<NextContinuationToken>[^<]*" "${response}"; then
-          ContinuationToken=$(CommonStdoutUriEncoded "$(PrintExtractedXMLValue "NextContinuationToken" "${response}")")
+          ContinuationToken=$(EncodeUri "$(PrintExtractedXMLValue "NextContinuationToken" "${response}")")
           LawsStdoutList "$@"
         fi
         ;;
@@ -722,7 +736,7 @@ ERROR
     # vars for methods
     HTTPMethod="GET"
     HashedPayload="$(ConvertSHA256Hash "")"
-    RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "${sourcePath}")"
+    RequestPath="/$(EncodeUriWithoutSlash "${sourcePath}")"
     CanonicalQueryString=""
 
     # run
@@ -792,7 +806,7 @@ ERROR
       # vars for cURL
       HTTPMethod="PUT"
       HashedPayload="$(openssl dgst -sha256 "${sourcePath}" | sed 's/^.*[[:blank:]]//')"
-      RequestPath="/$(CommonStdoutUriEncodedWithoutSlash "${destinationPath}")"
+      RequestPath="/$(EncodeUriWithoutSlash "${destinationPath}")"
       CanonicalQueryString=""
 
       # Call API
