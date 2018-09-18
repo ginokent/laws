@@ -458,7 +458,7 @@ README
     printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
       # shellcheck disable=SC1001
       case "$LINE" in
-        [[:alnum:]~_\.\-])
+        [0-9A-Za-z~_\.\-])
           printf '%s' "$LINE"
           ;;
         *)
