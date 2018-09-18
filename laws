@@ -123,7 +123,6 @@ This program relies heavily on "AWS Signature Version 4".
 
 ---
 README
-  return 0
   )}
 
   ##
@@ -141,7 +140,6 @@ README
   ##
   PrintDateUTC() { (
     LANG=C TZ=UTC date +'%Y%m%dT%H%M%SZ'
-    return 0
   )}
 
   ##
@@ -173,7 +171,6 @@ README
 
     # output log message to stderr
     printf '%s\n' "${logMessages}" | sed "s/^/$(PrintDateUTC) ${PROGRAM_NAME}[$$]: ${tag} /" >/dev/stderr
-    return 0
   )}
 
   ##
@@ -195,10 +192,7 @@ README
     data="$1"
 
     # Check containing
-    if { echo "${data}" | LANG=C grep -Evq '^[[:cntrl:][:print:]]*$'; }; then
-      return 0
-    fi
-    return 1
+    echo "${data}" | LANG=C grep -Evq '^[[:cntrl:][:print:]]*$'
   )}
 
   ##
@@ -222,10 +216,7 @@ README
     data="$2"
 
     # Check containing
-    if { echo "${data}" | grep -Eq -- "${pattern}"; }; then
-      return 0
-    fi
-    return 1
+    echo "${data}" | grep -Eq -- "${pattern}"
   )}
 
   ##
@@ -245,10 +236,7 @@ README
   ##
   ContainHelpOption() { (
     #                  "-h" "--help"           "a -h b" "a --help b"  "help"
-    if { ContainRegex '^[[:blank:]]*\-+h(elp)?|[[:blank:]]+\-+h(elp)?|^[[:blank:]]*help[[:blank:]]*$' "$*"; }; then
-      return 0
-    fi
-    return 1
+    ContainRegex '^[[:blank:]]*\-+h(elp)?|[[:blank:]]+\-+h(elp)?|^[[:blank:]]*help[[:blank:]]*$' "$*"
   )}
 
   ##
@@ -484,7 +472,6 @@ README
       eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
       if [ "${INI_region}" ]; then
         echo "${INI_region}"
-        return 0
       else
         PrintErrLog W "LawsStdoutRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
       fi
@@ -850,7 +837,6 @@ ERROR
     # display version
     if ContainRegex '-V|\-*version' "$*"; then
       echo "${PROGRAM_NAME} ${VERSION}"
-      return 0
     fi
 
     # declare vars for methods
