@@ -616,46 +616,77 @@ ERROR
   #   1 ContainMultiBytesChar, EXIT immediately
   ##
   PrintAWSAPIEndpoint() { (
+    # If already "AWSAPIEndpoint" defined, return normally without doing anything
     [ -z "${AWSAPIEndpoint}" ] || { echo "${AWSAPIEndpoint}"; return 0; }
+    # Local variables
     service="${1:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"service\" as \$1")"}"
     region="${2:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"region\" as \$2")"}"
+    # switch by service
     case "${service}" in
       s3) [ "${region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${region}.amazonaws.com" ;;
        *) PrintErrLog E "${service} not support"; return 1 ;;
     esac
   )}
 
+  ##
+  # Set global variables AccessKeyId AND SecretAccessKey
+  # If already "AccessKeyId" AND "SecretAccessKey" defined, return normally without doing anything
+  # EnvironmentVariables:
+  #   AWSAPIEndpoint option
+  #   AWS_REGION option
+  # Arguments:
+  #   $1 Service Name
+  #   $2 AWS Region
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string uri encoded
+  # Stderr:
+  #   no
+  # Return:
+  #   0 success to encode
+  #   1 ContainMultiBytesChar, EXIT immediately
+  ##
   LawsSetAccessKey() {
+    # If already "AccessKeyId" AND "SecretAccessKey" defined, return normally without doing anything
+    if [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]; then
+      return 0
+    fi
+
     # get credentials from environment variables
-    if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-      if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
-        AccessKeyId="${AWS_ACCESS_KEY_ID}" SecretAccessKey="${AWS_SECRET_ACCESS_KEY}"
+    if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
+      AccessKeyId="${AWS_ACCESS_KEY_ID}" SecretAccessKey="${AWS_SECRET_ACCESS_KEY}"
+      # If "AccessKeyId" AND "SecretAccessKey" defined, return normally
+      if [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]; then
+        return 0
       fi
     fi
 
     # get credentials from `~/.aws/config` and `~/.aws/credentials`
-    if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-      if [ -r ~/.aws/credentials ]; then
-        INI_aws_access_key_id="" INI_aws_secret_access_key=""
-        eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
-        AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
-        if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-          PrintErrLog W "LawsSetAccessKey(): Failed to parse ~/.aws/credentials: AWS_PROFILE=${AWS_PROFILE:-default}"
-        fi
+    if [ -r ~/.aws/credentials ]; then
+      INI_aws_access_key_id="" INI_aws_secret_access_key=""
+      eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
+      AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
+      # If "AccessKeyId" AND "SecretAccessKey" defined, return normally
+      if [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]; then
+        return 0
       fi
     fi
 
     # get credentials from Instance Profile
-    if [ -z "${AccessKeyId}" ] || [ -z "${SecretAccessKey}" ]; then
-      instanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || :)
-      secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null ||:)
-      AccessKeyId=$(echo "${secCredJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-      SecretAccessKey=$(echo "${secCredJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-      STSToken=$(echo "${secCredJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    instanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || :)
+    secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null ||:)
+    AccessKeyId=$(echo "${secCredJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    SecretAccessKey=$(echo "${secCredJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    STSToken=$(echo "${secCredJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
 
-      # if STSToken is null, regarding as not running on EC2.
-      if [ -z "${STSToken}" ]; then
-        PrintErrLog E "$(cat <<"ERROR"
+    # if STSToken is null, regarding as not running on EC2.
+    if [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ] && [ "${STSToken}" ]; then
+      return 0
+    fi
+
+    # PrintErrLog and EXIT abnormally immediately
+    PrintErrLog E "$(cat <<"ERROR"
 
 LawsSetAccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
@@ -675,11 +706,9 @@ Follow the steps below to register your credentials:
 
 ---
 ERROR
-        )"
-      # If the secret key can not be acquired, the abnormal end immediately.
-      exit 1
-      fi
-    fi
+    )"
+    # If the secret key can not be acquired, EXIT abnormally immediately
+    exit 1
   }
 
   LawsStdoutHeader() {
