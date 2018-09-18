@@ -2,9 +2,11 @@
 
 set -e
 
-# If on the master branch:
-if { git branch -a | tee /dev/stderr | grep -q ^*.*master; }; then
-  echo "[ERROR] You can not commit on the \"master\" branch."
+PROTECTED_BRANCH="master|develop"
+
+# If on the branch:
+if { git branch -a | tee /dev/stderr | grep -Eq '^\*[[:blank:]]('"${PROTECTED_BRANCH}"')'; }; then
+  echo "[ERROR] You can not commit on the \"${PROTECTED_BRANCH}\" branch."
   exit 1
 fi
 

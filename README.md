@@ -81,4 +81,5 @@ This program relies heavily on "AWS Signature Version 4".
     https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html  
   - GET Bucket (List Objects) Version 2  
     https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
-;
+
+---
