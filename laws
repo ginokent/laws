@@ -632,11 +632,12 @@ ERROR
   # Set global variables AWSAccessKeyId AND AWSSecretAccessKey
   # If already "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally without doing anything
   # EnvironmentVariables:
-  #   AWSAPIEndpoint option
-  #   AWS_REGION option
+  #   AWSAccessKeyId option
+  #   AWSSecretAccessKey option
+  #   AWS_ACCESS_KEY_ID option
+  #   AWS_SECRET_ACCESS_KEY option
   # Arguments:
-  #   $1 Service Name
-  #   $2 AWS Region
+  #   no
   # Stdin:
   #   no
   # Stdout:
@@ -711,6 +712,25 @@ ERROR
     exit 1
   }
 
+  ##
+  # Print Header for Request to AWS API
+  # EnvironmentVariables:
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   STSToken option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   HTTP header
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
   LawsStdoutHeader() {
     printf "%s\n" "host:${AWSAPIEndpoint}"
     [ "${HTTPMethod}" != PUT ] || printf "%s\n" "content-type:text/plain" # PUT
@@ -719,6 +739,25 @@ ERROR
     [ -z "${STSToken}" ] || printf "%s\n" "x-amz-security-token:${STSToken}"
   }
 
+  ##
+  # Print CanonicalHeader for Request to AWS API
+  # EnvironmentVariables:
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   STSToken option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   sorted HTTP header
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
   LawsStdoutCanonicalHeader() {
     LawsStdoutHeader | sort
   }
