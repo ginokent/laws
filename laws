@@ -24,6 +24,8 @@ if ! { echo "$-" | grep -q 'i'; }; then
 
   ##
   # Output README
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   no
   # Stdin:
@@ -127,6 +129,8 @@ README
 
   ##
   # Output UTC date for log
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   no
   # Stdin:
@@ -144,6 +148,8 @@ README
 
   ##
   # Output log
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 log level
   #   $2 log message
@@ -175,6 +181,8 @@ README
 
   ##
   # Check containing multi bytes character
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 content to be checked
   # Stdin:
@@ -197,6 +205,8 @@ README
 
   ##
   # Check containing regex passed
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 regex pattern
   #   $2 content to be checked by pattern
@@ -221,6 +231,8 @@ README
 
   ##
   # Check containing "-h" or "--help" or "help"
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 regex pattern
   #   $2 content to be checked containing help option
@@ -241,6 +253,8 @@ README
 
   ##
   # Check existing dependency commands in PATH
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $@ commands
   # Stdin:
@@ -265,6 +279,8 @@ README
 
   ##
   # Parse INI file and Print stdout
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 ini file pattern like "[foobar]"
   #   $2 ini file path
@@ -293,6 +309,8 @@ README
 
   ##
   # Convert hexadecimal
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 content converted to hexadecimal
   # Stdin:
@@ -310,6 +328,8 @@ README
 
   ##
   # Convert $2 (sha256 HMAC) by $1
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 HEXADECIMAL key
   #   $2 data be converted
@@ -328,6 +348,8 @@ README
 
   ##
   # Convert $1 by sha256
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 data
   # Stdin:
@@ -345,6 +367,8 @@ README
 
   ##
   # Print string scheme+slash+slash ( like http:// https:// s3:// ssh:// ... ) removed
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 data
   # Stdin:
@@ -362,6 +386,8 @@ README
 
   ##
   # Print string extracted by pattern
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 data
   # Stdin:
@@ -381,6 +407,8 @@ README
 
   ##
   # Print string extracted XML value
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 XML tag
   #   $2 extracted data
@@ -401,6 +429,8 @@ README
 
   ##
   # Print string extracted HTTP host
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 uri
   # Stdin:
@@ -418,6 +448,8 @@ README
 
   ##
   # Print string extracted HTTP path
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 uri
   # Stdin:
@@ -435,6 +467,8 @@ README
 
   ##
   # Encode uri string
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 uri
   # Stdin:
@@ -470,6 +504,8 @@ README
 
   ##
   # Encode uri string without slash /
+  # EnvironmentVariables:
+  #   no
   # Arguments:
   #   $1 uri
   # Stdin:
@@ -503,6 +539,22 @@ README
     done
   )}
 
+  ##
+  # Print "AWS Region" aquired by Environment Variable "AWS_REGION" OR "~/.aws/config" OR "169.254.169.254"
+  # EnvironmentVariables:
+  #   AWS_REGION option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   string uri encoded
+  # Stderr:
+  #   no
+  # Return:
+  #   0 success to encode
+  #   1 ContainMultiBytesChar, EXIT immediately
+  ##
   LawsStdoutRegion() { (
     # 1. environment variable: AWS_REGION
     [ -z "${AWS_REGION}" ] || { echo "${AWS_REGION}"; return 0; }
