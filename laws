@@ -515,7 +515,7 @@ README
   # Stderr:
   #   no
   # Return:
-  #   0 success to encode
+  #   0 success to encode uri
   #   1 ContainMultiBytesChar, EXIT immediately
   ##
   EncodeUriWithoutSlash() { (
@@ -548,12 +548,12 @@ README
   # Stdin:
   #   no
   # Stdout:
-  #   string uri encoded
+  #   string AWS Region
   # Stderr:
   #   no
   # Return:
-  #   0 success to encode
-  #   1 ContainMultiBytesChar, EXIT immediately
+  #   0 Print AWS Region
+  #   1 when failed to get AWS Region
   ##
   PrintAWSRegion() { (
     # 1. environment variable: AWS_REGION
@@ -608,12 +608,12 @@ ERROR
   # Stdin:
   #   no
   # Stdout:
-  #   string uri encoded
+  #   string AWS API Endpoint
   # Stderr:
   #   no
   # Return:
-  #   0 success to encode
-  #   1 ContainMultiBytesChar, EXIT immediately
+  #   0 print AWS API Endpoint
+  #   1 when pass un-supported service
   ##
   PrintAWSAPIEndpoint() { (
     # If already "AWSAPIEndpoint" defined, return normally without doing anything
@@ -629,8 +629,8 @@ ERROR
   )}
 
   ##
-  # Set global variables AccessKeyId AND SecretAccessKey
-  # If already "AccessKeyId" AND "SecretAccessKey" defined, return normally without doing anything
+  # Set global variables AWSAccessKeyId AND AWSSecretAccessKey
+  # If already "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally without doing anything
   # EnvironmentVariables:
   #   AWSAPIEndpoint option
   #   AWS_REGION option
@@ -640,24 +640,24 @@ ERROR
   # Stdin:
   #   no
   # Stdout:
-  #   string uri encoded
+  #   no
   # Stderr:
   #   no
   # Return:
-  #   0 success to encode
-  #   1 ContainMultiBytesChar, EXIT immediately
+  #   0 set AWSAccessKeyId AND AWSSecretAccessKey
+  #   1 EXIT immediately when failed to set AWSAccessKeyId AND AWSSecretAccessKey
   ##
-  LawsSetAccessKey() {
-    # If already "AccessKeyId" AND "SecretAccessKey" defined, return normally without doing anything
-    if [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]; then
+  SetAWSAccessKey() {
+    # If already "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally without doing anything
+    if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ]; then
       return 0
     fi
 
     # get credentials from environment variables
     if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
-      AccessKeyId="${AWS_ACCESS_KEY_ID}" SecretAccessKey="${AWS_SECRET_ACCESS_KEY}"
-      # If "AccessKeyId" AND "SecretAccessKey" defined, return normally
-      if [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]; then
+      AWSAccessKeyId="${AWS_ACCESS_KEY_ID}" AWSSecretAccessKey="${AWS_SECRET_ACCESS_KEY}"
+      # If "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally
+      if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ]; then
         return 0
       fi
     fi
@@ -666,9 +666,9 @@ ERROR
     if [ -r ~/.aws/credentials ]; then
       INI_aws_access_key_id="" INI_aws_secret_access_key=""
       eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
-      AccessKeyId="${INI_aws_access_key_id}" SecretAccessKey="${INI_aws_secret_access_key}"
-      # If "AccessKeyId" AND "SecretAccessKey" defined, return normally
-      if [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ]; then
+      AWSAccessKeyId="${INI_aws_access_key_id}" AWSSecretAccessKey="${INI_aws_secret_access_key}"
+      # If "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally
+      if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ]; then
         return 0
       fi
     fi
@@ -676,19 +676,19 @@ ERROR
     # get credentials from Instance Profile
     instanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || :)
     secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null ||:)
-    AccessKeyId=$(echo "${secCredJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-    SecretAccessKey=$(echo "${secCredJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    AWSAccessKeyId=$(echo "${secCredJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    AWSSecretAccessKey=$(echo "${secCredJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
     STSToken=$(echo "${secCredJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
 
     # if STSToken is null, regarding as not running on EC2.
-    if [ "${AccessKeyId}" ] && [ "${SecretAccessKey}" ] && [ "${STSToken}" ]; then
+    if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ] && [ "${STSToken}" ]; then
       return 0
     fi
 
     # PrintErrLog and EXIT abnormally immediately
     PrintErrLog E "$(cat <<"ERROR"
 
-LawsSetAccessKey(): Failed to connect http://169.254.169.254/
+SetAWSAccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
 
 1. Save credentials file as: ~/.aws/credentials
@@ -746,7 +746,7 @@ ERROR
         ConvertHMAC "$(
           ConvertHMAC "$(
             ConvertHMAC "$(
-              ConvertHex "AWS4${SecretAccessKey}"
+              ConvertHex "AWS4${AWSSecretAccessKey}"
             )" "${DateYMD}"
           )" "$(PrintAWSRegion)"
         )" "s3"
@@ -756,7 +756,7 @@ ERROR
 
   LawsStdoutAuthorization() {
     printf '%s' "AWS4-HMAC-SHA256"
-    printf '%s' " Credential=${AccessKeyId}/${DateYMD}/$(PrintAWSRegion)/s3/aws4_request,"
+    printf '%s' " Credential=${AWSAccessKeyId}/${DateYMD}/$(PrintAWSRegion)/s3/aws4_request,"
     printf '%s' " SignedHeaders=$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
     printf '%s' " Signature=$(LawsStdoutSignature)"
   }
@@ -984,7 +984,7 @@ ERROR
     DateYMD=$(date +'%Y%m%d')
     DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
     AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
-    LawsSetAccessKey
+    SetAWSAccessKey
 
     # check sub commands
     case "$1" in
