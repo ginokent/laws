@@ -887,7 +887,7 @@ ERROR
   # Return:
   #   0 always
   ##
-  LawsStdoutAuthorization() { (
+  PrintAuthorization() { (
     printf '%s' 'AWS4-HMAC-SHA256'
     printf '%s' " Credential=${AWSAccessKeyId}/${DateYMD}/$(PrintAWSRegion)/s3/aws4_request,"
     printf '%s' " SignedHeaders=$(PrintCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
@@ -924,7 +924,7 @@ ERROR
   CallAPIS3GET() { (
     curl -ksS -X "${HTTPMethod}" \
       -H "$(PrintCanonicalHeader)" \
-      -H "Authorization: $(LawsStdoutAuthorization)" \
+      -H "Authorization: $(PrintAuthorization)" \
       "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")"
   )}
 
@@ -956,106 +956,109 @@ ERROR
   CallAPIS3PUT() { (
     curl -ksS -X "${HTTPMethod}" \
       -H "$(PrintHTTPHeader)" \
-      -H "Authorization: $(LawsStdoutAuthorization)" \
+      -H "Authorization: $(PrintAuthorization)" \
       -T "${sourcePath}" \
       "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
   )}
 
   ##
-  # Print S3 List
+  # Print S3 List Buckets
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   DateYMD required
-  #   STSToken option
+  #   depends on CallAPIS3GET
   # Arguments:
-  #   $1 S3 Path
+  #   "/" or ""
   # Stdin:
   #   no
   # Stdout:
-  #   List of Buckets or Objects
+  #   List of Buckets
   # Stderr:
   #   no
   # Return:
   #   0 success to list
   #   1 failure to list
   ##
-  PrintS3List() { (
+  PrintS3ListBuckets() { (
     # declare vars for methods
     HTTPMethod='GET'
     HashedPayload="$(ConvertSHA256Hash '')"
+    RequestPath='/'
+    CanonicalQueryString=''
+    response=$(CallAPIS3GET)
 
-    # TODO: divide "PrintS3ListBuckets" AND "PrintS3ListObjects"
+    # if err != nil
+    if ContainRegex '</Error>' "${response}"; then
+      echo "${response}" >/dev/stderr
+      return 1
+    fi
 
-    # check options
-    case "$1" in
-      /|'') # when no argument OR $1 = "/"
-        # vars
-        RequestPath='/'
-        CanonicalQueryString=''
-        response=$(CallAPIS3GET)
+    # exit normally
+    echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
+  ) }
 
-        # If err != nil
-        if ContainRegex '</Error>' "${response}"; then
-          echo "${response}" >/dev/stderr
-          return 1
-        fi
+  ##
+  # Print S3 List Objects
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
+  # EnvironmentVariables:
+  #   depends on CallAPIS3GET
+  # Arguments:
+  #   $1 S3 Path
+  # Stdin:
+  #   no
+  # Stdout:
+  #   List of Objects
+  # Stderr:
+  #   no
+  # Return:
+  #   0 success to list
+  #   1 failure to list
+  ##
+  PrintS3ListObjects() { (
+    # declare vars for methods
+    s3Path="$(PrintSchemeSlashSlashRemoved "$1")"
 
-        # exit normally
-        echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
-        ;;
+    # declare vars for methods
+    HTTPMethod='GET'
+    HashedPayload="$(ConvertSHA256Hash '')"
+    RequestPath="/$(PrintExtractedHTTPHost "${s3Path}")"
+    Prefix=$(EncodeUri "$(PrintExtractedHTTPPath "$1")")
+    { [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; } && MaxKeys=1000
 
-      *)
-        # vars
-        s3Path="$(PrintSchemeSlashSlashRemoved "$1")"
+    # CanonicalQueryString
+    CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
+    CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
+    CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
-        # declare vars for methods
-        RequestPath="/$(PrintExtractedHTTPHost "${s3Path}")"
-        Prefix=$(EncodeUri "$(PrintExtractedHTTPPath "$1")")
-        { [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; } && MaxKeys=1000
+    # run
+    response=$(CallAPIS3GET)
 
-        # CanonicalQueryString
-        CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
-        CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
-        CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
+    # if error
+    if ContainRegex '</Error>' "${response}"; then
+      # if exist PermanentRedirect, declare new AWSAPIEndpoint and run PrintS3ListObjects
+      if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
+        AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
+        PrintS3ListObjects "$@"
+      fi
 
-        # run
-        response=$(CallAPIS3GET)
+      # print error to stderr
+      echo "${response}" >/dev/stderr
+      return 1
+    fi
 
-        # if error
-        if ContainRegex '</Error>' "${response}"; then
-          # if exist PermanentRedirect, declare new AWSAPIEndpoint and run PrintS3List
-          if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
-            AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
-            PrintS3List "$@"
-          fi
+    # display edited response
+    if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then
+      PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
+        | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
+    else
+      echo "${response}" > /dev/stderr
+    fi
 
-          # print error to stderr
-          echo "${response}" >/dev/stderr
-          return 1
-        fi
-
-        # display edited response
-        if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then
-          PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
-            | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
-        else
-          echo "${response}" > /dev/stderr
-        fi
-
-        # if exist NextContinuationToken, declare ContinuationToken and run PrintS3List
-        if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
-          ContinuationToken=$(EncodeUri "$(PrintExtractedXMLValue 'NextContinuationToken' "${response}")")
-          PrintS3List "$@"
-        fi
-        ;;
-    esac
+    # if exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
+    if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
+      ContinuationToken=$(EncodeUri "$(PrintExtractedXMLValue 'NextContinuationToken' "${response}")")
+      PrintS3ListObjects "$@"
+    fi
+    
   ) }
 
   ##
@@ -1143,10 +1146,10 @@ ERROR
 
     # if no args, list buckets, else list objects by passed bucket
     if [ "$#" = 0 ]; then
-      PrintS3List
+      PrintS3ListBuckets
     else 
       for arg in "$@"; do
-        PrintS3List "${arg}"
+        PrintS3ListObjects "${arg}"
       done
     fi
   )}
@@ -1219,7 +1222,7 @@ ERROR
     destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}")"
 
     # vars about bucket
-    responseListBucket=$(PrintS3List)
+    responseListBucket=$(PrintS3ListBuckets)
     destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
 
     # vars about path
