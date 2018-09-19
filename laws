@@ -13,7 +13,7 @@ if ! { echo "$-" | grep -q i; }; then
   set -e
 
   # Global variables
-  readonly VERSION='0.1.5'
+  readonly VERSION='0.1.6'
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
   # When exiting, clean up temporary files.
@@ -405,7 +405,7 @@ README
   #   no
   # Arguments:
   #   $1 XML tag
-  #   $2 EML string
+  #   $2 XML string
   # Stdin:
   #   no
   # Stdout:
@@ -416,7 +416,7 @@ README
   #   0 always
   ##
   PrintExtractedXMLValue() { (
-    echo "$2" | grep -Eo "<$1>.*</$1>" | sed "s|</?$1>||g"
+    echo "$2" | grep -Eo "<$1>.*</$1>" | sed "s|</*$1>||g"
   )}
 
   ##
@@ -1027,6 +1027,7 @@ ERROR
         | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
     else
       echo "${response}" > /dev/stderr
+      return 1
     fi
 
     # if exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
