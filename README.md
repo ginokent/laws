@@ -22,8 +22,8 @@ Lightweight shell script for Amazon Web Service Command Line Interface like AWS 
 
 When executing this script,
   - Please use it on EC2 which has IAM Role allowed access to Amazon S3,
-  - or save `~/.aws/config` and `~/.aws/credentials`,
-  - or set the following environment variables:
+  - OR save `~/.aws/config` and `~/.aws/credentials`,
+  - OR set the following environment variables:
 
     ```
     $ export AWS_REGION=ap-northeast-1
