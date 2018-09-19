@@ -1221,6 +1221,14 @@ ERROR
     sourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"sourcePath\" as \$1")"}")"
     destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}")"
 
+    #if [ "${sourcePath}" = '-' ]; then
+    #  sourcePath='/dev/stdin'
+    #fi
+
+    if [ "${destinationPath}" = '-' ]; then
+      destinationPath='/dev/stdout'
+    fi
+
     # vars about bucket
     responseListBucket=$(PrintS3ListBuckets)
     destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
