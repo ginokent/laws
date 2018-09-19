@@ -7,7 +7,7 @@
 # If in non interactive shell ( "$-" not containing "i" ),
 # execute "laws" as command.
 ##
-if ! { echo "$-" | grep -q 'i'; }; then
+if ! { echo "$-" | grep -q i; }; then
 
   # If an error occurs, exit abnormally.
   set -e
@@ -1106,7 +1106,7 @@ ERROR
     if ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
 
     # if no args, list buckets, else list objects by passed bucket
-    if [ "$#" = 0 ]; then
+    if [ "$#" = 0 ] || [ "$1" = / ]; then
       PrintS3ListBuckets
     else 
       for arg in "$@"; do
@@ -1170,11 +1170,11 @@ ERROR
     SourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}")"
     destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}")"
 
-    #if [ "${SourcePath}" = '-' ]; then
+    #if [ "${SourcePath}" = - ]; then
     #  SourcePath='/dev/stdin'
     #fi
 
-    if [ "${destinationPath}" = '-' ]; then
+    if [ "${destinationPath}" = - ]; then
       destinationPath='/dev/stdout'
     fi
 
@@ -1347,10 +1347,10 @@ else
     if [ "${cword}" -eq 1 ]; then
       eval 'COMPREPLY=( $(compgen -W "s3" -- "${cur}") )'
     elif [ "${cword}" -eq 2 ]; then
-      if [ "${prev}" = 's3' ]; then
+      if [ "${prev}" = s3 ]; then
         eval 'COMPREPLY=( $(compgen -W "ls cat cp" -- "${cur}") )'
       fi
-    elif [ "${cword}" -eq 3 ] && { [ "${prev}" = 'ls' ] || [ "${prev}" = 'cat' ]; }; then
+    elif [ "${cword}" -eq 3 ] && { [ "${prev}" = ls ] || [ "${prev}" = cat ]; }; then
       if [ -z "${__laws_s3_ls_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_previous_execution_time)) -gt 30 ]; then
         __laws_s3_ls_completion_previous_execution_time=$(date +%s)
         __laws_s3_ls_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
