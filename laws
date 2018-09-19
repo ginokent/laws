@@ -484,7 +484,7 @@ README
   EncodeUri() { (
     data="$1"
     if ContainMultiBytesChar "${data}"; then
-      PrintErrLog E "containing multi bytes char"
+      PrintErrLog E 'containing multi bytes char'
       # If multi-byte characters are included, abnormal termination immediately.
       exit 1
     fi
@@ -521,7 +521,7 @@ README
   EncodeUriWithoutSlash() { (
     data="$1"
     if ContainMultiBytesChar "${data}"; then
-      PrintErrLog E "containing multi bytes char"
+      PrintErrLog E 'containing multi bytes char'
       # If multi-byte characters are included, abnormal termination immediately.
       exit 1
     fi
@@ -561,7 +561,7 @@ README
 
     # 2. config file: ~/.aws/config
     if [ -r ~/.aws/config ]; then
-      INI_region=""
+      INI_region=''
       eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
       if [ "${INI_region}" ]; then
         echo "${INI_region}"
@@ -572,7 +572,7 @@ README
 
     # 3. meta-data
     if ! curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; then
-      PrintErrLog E "$(cat <<"ERROR"
+      PrintErrLog E "$(cat <<'ERROR'
 
 PrintAWSRegion(): Not specified AWS Region
 Follow the steps below to register AWS region:
@@ -623,7 +623,7 @@ ERROR
     region="${2:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"region\" as \$2")"}"
     # switch by service
     case "${service}" in
-      s3) [ "${region}" = us-east-1 ] && echo "s3.amazonaws.com" || echo "s3-${region}.amazonaws.com" ;;
+      s3) [ "${region}" = us-east-1 ] && echo 's3.amazonaws.com' || echo "s3-${region}.amazonaws.com" ;;
        *) PrintErrLog E "${service} not support"; return 1 ;;
     esac
   )}
@@ -665,7 +665,7 @@ ERROR
 
     # get credentials from `~/.aws/config` and `~/.aws/credentials`
     if [ -r ~/.aws/credentials ]; then
-      INI_aws_access_key_id="" INI_aws_secret_access_key=""
+      INI_aws_access_key_id='' INI_aws_secret_access_key=''
       eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
       AWSAccessKeyId="${INI_aws_access_key_id}" AWSSecretAccessKey="${INI_aws_secret_access_key}"
       # If "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally
@@ -675,11 +675,11 @@ ERROR
     fi
 
     # get credentials from Instance Profile
-    instanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || :)
-    secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null ||:)
-    AWSAccessKeyId=$(echo "${secCredJSON}" | grep "AccessKeyId" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-    AWSSecretAccessKey=$(echo "${secCredJSON}" | grep "SecretAccessKey" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-    STSToken=$(echo "${secCredJSON}" | grep "Token" | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    instanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || true)
+    secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null || true)
+    AWSAccessKeyId=$(echo "${secCredJSON}" | grep 'AccessKeyId' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    AWSSecretAccessKey=$(echo "${secCredJSON}" | grep 'SecretAccessKey' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+    STSToken=$(echo "${secCredJSON}" | grep 'Token' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
 
     # if STSToken is null, regarding as not running on EC2.
     if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ] && [ "${STSToken}" ]; then
@@ -687,7 +687,7 @@ ERROR
     fi
 
     # PrintErrLog and EXIT abnormally immediately
-    PrintErrLog E "$(cat <<"ERROR"
+    PrintErrLog E "$(cat <<'ERROR'
 
 SetAWSAccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
@@ -732,11 +732,11 @@ ERROR
   #   0 always
   ##
   LawsStdoutHeader() {
-    printf "%s\n" "host:${AWSAPIEndpoint}"
-    [ "${HTTPMethod}" != PUT ] || printf "%s\n" "content-type:text/plain" # PUT
-    printf "%s\n" "x-amz-content-sha256:${HashedPayload}"
-    printf "%s\n" "x-amz-date:${DateISO8601}"
-    [ -z "${STSToken}" ] || printf "%s\n" "x-amz-security-token:${STSToken}"
+    printf '%s\n' "host:${AWSAPIEndpoint}"
+    [ "${HTTPMethod}" != PUT ] || printf '%s\n' 'content-type:text/plain' # PUT
+    printf '%s\n' "x-amz-content-sha256:${HashedPayload}"
+    printf '%s\n' "x-amz-date:${DateISO8601}"
+    [ -z "${STSToken}" ] || printf '%s\n' "x-amz-security-token:${STSToken}"
   }
 
   ##
@@ -763,20 +763,20 @@ ERROR
   }
 
   LawsStdoutCanonicalRequest() {
-    printf "%s\n" "${HTTPMethod}" # GET
-    printf "%s\n" "${RequestPath}" # /your-backet
-    printf "%s\n" "${CanonicalQueryString}" # list-type=2&prefix=%2Fpath%2Fto%2Ffile
-    printf "%s\n" "$(LawsStdoutCanonicalHeader)"
-    printf "%s\n" "" # blank lines are required
-    printf "%s\n" "$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
-    printf "%s\n" "${HashedPayload}"
+    printf '%s\n' "${HTTPMethod}" # GET
+    printf '%s\n' "${RequestPath}" # /your-backet
+    printf '%s\n' "${CanonicalQueryString}" # list-type=2&prefix=%2Fpath%2Fto%2Ffile
+    printf '%s\n' "$(LawsStdoutCanonicalHeader)"
+    printf '%s\n' '' # blank lines are required
+    printf '%s\n' "$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
+    printf '%s\n' "${HashedPayload}"
   }
 
   LawsStdoutStringtoSign() {
-    printf "%s\n" "AWS4-HMAC-SHA256"
-    printf "%s\n" "${DateISO8601}"
-    printf "%s\n" "${DateYMD}/$(PrintAWSRegion)/s3/aws4_request"
-    printf "%s\n" "$(ConvertSHA256Hash "$(LawsStdoutCanonicalRequest)")"
+    printf '%s\n' 'AWS4-HMAC-SHA256'
+    printf '%s\n' "${DateISO8601}"
+    printf '%s\n' "${DateYMD}/$(PrintAWSRegion)/s3/aws4_request"
+    printf '%s\n' "$(ConvertSHA256Hash "$(LawsStdoutCanonicalRequest)")"
   }
 
   LawsStdoutSignature() {
@@ -788,13 +788,13 @@ ERROR
               ConvertHex "AWS4${AWSSecretAccessKey}"
             )" "${DateYMD}"
           )" "$(PrintAWSRegion)"
-        )" "s3"
-      )" "aws4_request"
+        )" 's3'
+      )" 'aws4_request'
     )" "$(LawsStdoutStringtoSign)"
   }
 
   LawsStdoutAuthorization() {
-    printf '%s' "AWS4-HMAC-SHA256"
+    printf '%s' 'AWS4-HMAC-SHA256'
     printf '%s' " Credential=${AWSAccessKeyId}/${DateYMD}/$(PrintAWSRegion)/s3/aws4_request,"
     printf '%s' " SignedHeaders=$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
     printf '%s' " Signature=$(LawsStdoutSignature)"
@@ -809,21 +809,21 @@ ERROR
 
   LawsStdoutList() {
     # declare vars for methods
-    HTTPMethod="GET"
-    HashedPayload="$(ConvertSHA256Hash "")"
+    HTTPMethod='GET'
+    HashedPayload="$(ConvertSHA256Hash '')"
 
     # check sub commands
     case "$1" in
-      /|"") # when no argument OR $1 = "/"
-        RequestPath="/"
-        CanonicalQueryString=""
+      /|'') # when no argument OR $1 = "/"
+        RequestPath='/'
+        CanonicalQueryString=''
         response=$(LawsStdoutCallAPIS3Get)
         # check error
         if ContainRegex '</Error>' "${response}"; then
           echo "${response}" >/dev/stderr
           return 1
         fi
-        echo "${response}" | grep -Eo "[^>]*</Name><CreationDate>[^<]*" | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
+        echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
         ;;
 
       *)
@@ -832,7 +832,7 @@ ERROR
 
         # declare vars for methods
         RequestPath="/$(PrintExtractedHTTPHost "${sourcePath}")"
-        if [ -z "${MaxKeys}" ] || ContainRegex "[^0-9]" "${MaxKeys}"; then MaxKeys=1000; fi
+        if [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; then MaxKeys=1000; fi
         Prefix=$(EncodeUri "$(PrintExtractedHTTPPath "$1")")
         CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
@@ -842,8 +842,8 @@ ERROR
         # if error
         if ContainRegex '</Error>' "${response}"; then
           # if exist PermanentRedirect, declare new AWSAPIEndpoint and run LawsStdoutList
-          if ContainRegex "<Code>PermanentRedirect</Code>" "${response}"; then
-            AWSAPIEndpoint=$(PrintExtractedXMLValue "Endpoint" "${response}")
+          if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
+            AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
             LawsStdoutList "$@"
           fi
 
@@ -853,15 +853,15 @@ ERROR
         fi
 
         # display edited response
-        if ContainRegex "[^>]*</Key><LastModified>[^<]*" "${response}"; then
-          PrintExtractedByPattern "[^>]*</Key><LastModified>[^<]*" "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
+        if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then
+          PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
         else
           echo "${response}" > /dev/stderr
         fi
 
         # if exist NextContinuationToken, declare ContinuationToken and run LawsStdoutList
-        if ContainRegex "<NextContinuationToken>[^<]*" "${response}"; then
-          ContinuationToken=$(EncodeUri "$(PrintExtractedXMLValue "NextContinuationToken" "${response}")")
+        if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
+          ContinuationToken=$(EncodeUri "$(PrintExtractedXMLValue 'NextContinuationToken' "${response}")")
           LawsStdoutList "$@"
         fi
         ;;
@@ -873,10 +873,10 @@ ERROR
     sourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsStdoutGet(): requires \"sourcePath\" as \$1")"}")"
 
     # vars for methods
-    HTTPMethod="GET"
-    HashedPayload="$(ConvertSHA256Hash "")"
+    HTTPMethod='GET'
+    HashedPayload="$(ConvertSHA256Hash '')"
     RequestPath="/$(EncodeUriWithoutSlash "${sourcePath}")"
-    CanonicalQueryString=""
+    CanonicalQueryString=''
 
     # run
     tmpFile=$(mktemp)
@@ -885,8 +885,8 @@ ERROR
 
     # error or not
     if ContainRegex '</Error>' "${response}"; then
-      if ContainRegex "<Code>PermanentRedirect</Code>" "${response}"; then
-        AWSAPIEndpoint=$(PrintExtractedXMLValue "Endpoint" "${response}")
+      if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
+        AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
         LawsStdoutGet "$@"
       fi
 
@@ -933,20 +933,20 @@ ERROR
 
     # vars about bucket
     responseListBucket=$(LawsStdoutList)
-    destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" ||:)
+    destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
 
     # vars about path
-    responseListPath=$(LawsSubCommandLs "${sourcePath}" "${destinationPath}" 2>/dev/null ||:)
-    sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]${sourcePath}$" ||:)
+    responseListPath=$(LawsSubCommandLs "${sourcePath}" "${destinationPath}" 2>/dev/null || true)
+    sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]${sourcePath}$" || true)
 
     # copy local to s3 (PUT)
     if [ -e "${sourcePath}" ] && [ "${destinationBucketExist}" ]; then
 
       # vars for cURL
-      HTTPMethod="PUT"
+      HTTPMethod='PUT'
       HashedPayload="$(openssl dgst -sha256 "${sourcePath}" | sed 's/^.*[[:blank:]]//')"
       RequestPath="/$(EncodeUriWithoutSlash "${destinationPath}")"
-      CanonicalQueryString=""
+      CanonicalQueryString=''
 
       # Call API
       response=$(
@@ -1059,7 +1059,7 @@ else
     if [ "${cword}" -eq 1 ]; then
       eval 'COMPREPLY=( $(compgen -W "s3" -- "${cur}") )'
     elif [ "${cword}" -eq 2 ]; then
-      if [ "${prev}" = "s3" ]; then
+      if [ "${prev}" = 's3' ]; then
         eval 'COMPREPLY=( $(compgen -W "ls cat cp" -- "${cur}") )'
       fi
     elif [ "${cword}" -eq 3 ] && { [ "${prev}" = 'ls' ] || [ "${prev}" = 'cat' ]; }; then
