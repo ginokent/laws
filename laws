@@ -1300,8 +1300,9 @@ ERROR
     CheckDependency '[' cat curl date grep od openssl printf sed tr
 
     # display version
-    if ContainRegex '-V|\-*version' "$*"; then
+    if ContainRegex '-V|-*version' "$*"; then
       echo "${PROGRAM_NAME} ${VERSION}"
+      return 0
     fi
 
     # declare vars for methods
