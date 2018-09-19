@@ -918,7 +918,8 @@ ERROR
   # Stderr:
   #   no
   # Return:
-  #   0 always
+  #   0 success
+  #   1 failure
   ##
   CallAPIS3GET() { (
     curl -ksS -X "${HTTPMethod}" \
@@ -949,7 +950,8 @@ ERROR
   # Stderr:
   #   no
   # Return:
-  #   0 always
+  #   0 success
+  #   1 failure
   ##
   CallAPIS3PUT() { (
     curl -ksS -X "${HTTPMethod}" \
@@ -977,11 +979,12 @@ ERROR
   # Stdin:
   #   no
   # Stdout:
-  #   List of Objects
+  #   List of Buckets or Objects
   # Stderr:
   #   no
   # Return:
-  #   0 always
+  #   0 success to list
+  #   1 failure to list
   ##
   PrintS3List() { (
     # declare vars for methods
@@ -1056,7 +1059,7 @@ ERROR
   ) }
 
   ##
-  # Print S3 S3 Get Object
+  # Print S3 S3 Get Object contents
   # EnvironmentVariables:
   #   AWSSecretAccessKey required
   #   AWSAPIEndpoint required
@@ -1076,7 +1079,8 @@ ERROR
   # Stderr:
   #   no
   # Return:
-  #   0 always
+  #   0 success to get
+  #   1 failure to get
   ##
   PrintS3GetObject() { (
     # vars common
@@ -1105,11 +1109,35 @@ ERROR
       return 1
     fi
 
-    # if empty file, remove
+    # If empty file, Remove.
     [ ! -s "${tmpFile}" ] || cat "${tmpFile}"
   )}
 
-  LawsSubCommandLs() {
+  ##
+  # laws s3 ls
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   $@ S3 Objects Paths
+  # Stdin:
+  #   no
+  # Stdout:
+  #   List objects
+  # Stderr:
+  #   no
+  # Return:
+  #   0 success to list
+  #   1 failure to list
+  ##
+  LawsS3Ls() { (
     # if args contain "-h" or "--help" or "help" or ..., display README
     if ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
 
@@ -1121,9 +1149,33 @@ ERROR
         PrintS3List "${arg}"
       done
     fi
-  }
+  )}
 
-  LawsSubCommandCat() {
+  ##
+  # laws s3 cat
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   $@ S3 Objects Paths
+  # Stdin:
+  #   no
+  # Stdout:
+  #   contents of objects
+  # Stderr:
+  #   no
+  # Return:
+  #   0 success to list
+  #   1 failure to list
+  ##
+  LawsS3Cat() { (
     # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
     if [ "$#" = 0 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
 
@@ -1131,22 +1183,47 @@ ERROR
     for arg in "$@"; do
       PrintS3GetObject "${arg}"
     done
-  }
+  )}
 
-  LawsSubCommandCopy() {
+  ##
+  # laws s3 cp
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   $1 source path
+  #   $2 destination path
+  # Stdin:
+  #   no
+  # Stdout:
+  #   no
+  # Stderr:
+  #   log
+  # Return:
+  #   0 success to update or download
+  #   1 failure to update or download
+  ##
+  LawsS3Cp() {
     # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
     if [ "$#" != 2 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
 
     # vars common
-    sourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsSubCommandCopy(): requires \"sourcePath\" as \$1")"}")"
-    destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsSubCommandCopy(): requires \"destinationPath\" as \$2")"}")"
+    sourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"sourcePath\" as \$1")"}")"
+    destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}")"
 
     # vars about bucket
     responseListBucket=$(PrintS3List)
     destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
 
     # vars about path
-    responseListPath=$(LawsSubCommandLs "${sourcePath}" "${destinationPath}" 2>/dev/null || true)
+    responseListPath=$(LawsS3Ls "${sourcePath}" "${destinationPath}" 2>/dev/null || true)
     sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]${sourcePath}$" || true)
 
     # copy local to s3 (PUT)
@@ -1174,7 +1251,7 @@ ERROR
       PrintS3GetObject "${sourcePath}" > "${tmpFileForS3ToS3}"
 
       # PUT
-      response=$(LawsSubCommandCopy "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
+      response=$(LawsS3Cp "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
 
       # If the tmp file can be uploaded, output the appropriate log.
       if ContainRegex "uploaded.*${destinationPath}" "${response}"; then
@@ -1204,16 +1281,67 @@ ERROR
     fi
   }
 
-  LawsSubCommandS3() {
+  ##
+  # laws s3 ...
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   $1 sub command
+  #   $2- sub command's arguments
+  # Stdin:
+  #   no
+  # Stdout:
+  #   output
+  # Stderr:
+  #   log
+  # Return:
+  #   0 success
+  #   1 failure
+  ##
+  LawsS3() {
     # check sub commands
     case "$1" in
-       ls) shift; LawsSubCommandLs "$@" ;;
-      cat) shift; LawsSubCommandCat "$@" ;;
-       cp) shift; LawsSubCommandCopy "$@" ;;
+       ls) shift; LawsS3Ls "$@" ;;
+      cat) shift; LawsS3Cat "$@" ;;
+       cp) shift; LawsS3Cp "$@" ;;
         *) PrintErrReadMe; exit 0 ;;
     esac
   }
 
+  ##
+  # laws ...
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   $1 sub command
+  #   $2 sub command
+  #   $3- sub command's arguments
+  # Stdin:
+  #   no
+  # Stdout:
+  #   output
+  # Stderr:
+  #   log
+  # Return:
+  #   0 success
+  #   1 failure
+  ##
   main() {
     # check dependency
     CheckDependency '[' cat curl date grep od openssl printf sed tr
@@ -1231,12 +1359,12 @@ ERROR
 
     # check sub commands
     case "$1" in
-      s3) shift && LawsSubCommandS3 "$@" ;;
+      s3) shift && LawsS3 "$@" ;;
        *) PrintErrReadMe; exit 0 ;;
     esac
   }
 
-  #
+  ##
   # Execute the main function.
   # It is executed first in this script.
   #
@@ -1244,11 +1372,12 @@ ERROR
   #
   # e.g.
   #   main s3 ls s3://mybucket/path/tp/file
+  ##
   main "$@"
 
 else
 
-  #
+  ##
   # Interactive: laws as completion
   # ref: https://blog.cybozu.io/entry/2016/09/26/080000
   #
@@ -1257,6 +1386,7 @@ else
   # the following functions are not defined nor executed.
   #
   # shellcheck disable=SC2016,SC2034,SC2039
+  ##
   _laws() {
     local cur prev cword
     _get_comp_words_by_ref -n : cur prev cword
