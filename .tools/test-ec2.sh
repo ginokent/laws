@@ -19,7 +19,7 @@ set -x
 rsync -e 'ssh -i ~/.ssh/laws.pem' -az ${LAWS_LOCAL_REPOSITORY} ${LAWS_REMOTE_USER}@${LAWS_REMOTE_HOST}:${LAWS_REMOTE_REPOSITORY}
 
 # run test
-ssh ${LAWS_REMOTE_USER}@${LAWS_REMOTE_HOST} ${LAWS_REMOTE_COMMAND}
+ssh -i ~/.ssh/laws.pem ${LAWS_REMOTE_USER}@${LAWS_REMOTE_HOST} ${LAWS_REMOTE_COMMAND}
 
 # disable print commands
 set +x
