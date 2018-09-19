@@ -733,7 +733,7 @@ ERROR
   ##
   PrintHTTPHeader() { (
     printf '%s\n' "host:${AWSAPIEndpoint}"
-    [ "${HTTPMethod}" != PUT ] || printf '%s\n' 'content-type:text/plain' # PUT
+    #[ "${HTTPMethod}" != PUT ] || printf '%s\n' 'content-type:text/plain' # PUT # Unnecessary?
     printf '%s\n' "x-amz-content-sha256:${HashedPayload}"
     printf '%s\n' "x-amz-date:${DateISO8601}"
     [ -z "${STSToken}" ] || printf '%s\n' "x-amz-security-token:${STSToken}"
