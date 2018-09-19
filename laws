@@ -731,16 +731,17 @@ ERROR
   # Return:
   #   0 always
   ##
-  LawsStdoutHeader() {
+  PrintHTTPHeader() { (
     printf '%s\n' "host:${AWSAPIEndpoint}"
     [ "${HTTPMethod}" != PUT ] || printf '%s\n' 'content-type:text/plain' # PUT
     printf '%s\n' "x-amz-content-sha256:${HashedPayload}"
     printf '%s\n' "x-amz-date:${DateISO8601}"
     [ -z "${STSToken}" ] || printf '%s\n' "x-amz-security-token:${STSToken}"
-  }
+  )}
 
   ##
-  # Print CanonicalHeader for Request to AWS API
+  # Print CanonicalHeader of AWS Signature Version 4
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
   # EnvironmentVariables:
   #   AWSAPIEndpoint required
   #   HTTPMethod required
@@ -758,28 +759,97 @@ ERROR
   # Return:
   #   0 always
   ##
-  LawsStdoutCanonicalHeader() {
-    LawsStdoutHeader | sort
-  }
+  PrintCanonicalHeader() { (
+    PrintHTTPHeader | sort
+  )}
 
-  LawsStdoutCanonicalRequest() {
-    printf '%s\n' "${HTTPMethod}" # GET
-    printf '%s\n' "${RequestPath}" # /your-backet
-    printf '%s\n' "${CanonicalQueryString}" # list-type=2&prefix=%2Fpath%2Fto%2Ffile
-    printf '%s\n' "$(LawsStdoutCanonicalHeader)"
-    printf '%s\n' '' # blank lines are required
-    printf '%s\n' "$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
+  ##
+  # Print CanonicalRequest of AWS Signature Version 4
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+  # EnvironmentVariables:
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   STSToken option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   HTTP request
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintCanonicalRequest() { (
+    printf '%s\n' "${HTTPMethod}"                # GET / PUT
+    printf '%s\n' "${RequestPath}"               # /your-backet
+    printf '%s\n' "${CanonicalQueryString}"      # list-type=2&prefix=%2Fpath%2Fto%2Ffile
+    printf '%s\n' "$(PrintCanonicalHeader)" # 
+    printf '%s\n' ''                             # blank lines are required
+    printf '%s\n' "$(PrintCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
     printf '%s\n' "${HashedPayload}"
-  }
+  )}
 
-  LawsStdoutStringtoSign() {
+  ##
+  # Print StringToSign of AWS Signature Version 4
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+  # EnvironmentVariables:
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   StringToSign
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintStringtoSign() { (
     printf '%s\n' 'AWS4-HMAC-SHA256'
     printf '%s\n' "${DateISO8601}"
     printf '%s\n' "${DateYMD}/$(PrintAWSRegion)/s3/aws4_request"
-    printf '%s\n' "$(ConvertSHA256Hash "$(LawsStdoutCanonicalRequest)")"
-  }
+    printf '%s\n' "$(ConvertSHA256Hash "$(PrintCanonicalRequest)")"
+  )}
 
-  LawsStdoutSignature() {
+  ##
+  # Print Signature of AWS Signature Version 4
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   Signature
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintSignature() { (
     ConvertHMAC "$(
       ConvertHMAC "$(
         ConvertHMAC "$(
@@ -790,61 +860,171 @@ ERROR
           )" "$(PrintAWSRegion)"
         )" 's3'
       )" 'aws4_request'
-    )" "$(LawsStdoutStringtoSign)"
-  }
+    )" "$(PrintStringtoSign)"
+  )}
 
-  LawsStdoutAuthorization() {
+  ##
+  # Print Authorization of AWS Signature Version 4
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   Signature
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  LawsStdoutAuthorization() { (
     printf '%s' 'AWS4-HMAC-SHA256'
     printf '%s' " Credential=${AWSAccessKeyId}/${DateYMD}/$(PrintAWSRegion)/s3/aws4_request,"
-    printf '%s' " SignedHeaders=$(LawsStdoutCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
-    printf '%s' " Signature=$(LawsStdoutSignature)"
-  }
+    printf '%s' " SignedHeaders=$(PrintCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
+    printf '%s' " Signature=$(PrintSignature)"
+  )}
 
-  LawsStdoutCallAPIS3Get() {
+  ##
+  # Call S3 API GET
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectGET.html
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   Signature
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  CallAPIS3GET() { (
     curl -ksS -X "${HTTPMethod}" \
-      -H "$(LawsStdoutCanonicalHeader)" \
+      -H "$(PrintCanonicalHeader)" \
       -H "Authorization: $(LawsStdoutAuthorization)" \
       "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")"
-  }
+  )}
 
-  LawsStdoutList() {
+  ##
+  # Call S3 API PUT
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectPUT.html
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString option
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   Signature
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  CallAPIS3PUT() { (
+    curl -ksS -X "${HTTPMethod}" \
+      -H "$(PrintHTTPHeader)" \
+      -H "Authorization: $(LawsStdoutAuthorization)" \
+      -T "${sourcePath}" \
+      "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
+  )}
+
+  ##
+  # Print S3 List
+  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   no
+  # Stdin:
+  #   no
+  # Stdout:
+  #   Signature
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintS3List() {
     # declare vars for methods
     HTTPMethod='GET'
     HashedPayload="$(ConvertSHA256Hash '')"
 
-    # check sub commands
+    # check options
     case "$1" in
       /|'') # when no argument OR $1 = "/"
+        # vars
         RequestPath='/'
         CanonicalQueryString=''
-        response=$(LawsStdoutCallAPIS3Get)
-        # check error
+        response=$(CallAPIS3GET)
+
+        # If err != nil
         if ContainRegex '</Error>' "${response}"; then
           echo "${response}" >/dev/stderr
           return 1
         fi
+
+        # exit normally
         echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
         ;;
 
       *)
-        # vars common
-        sourcePath="$(PrintSchemeSlashSlashRemoved "$1")"
+        # vars
+        s3Path="$(PrintSchemeSlashSlashRemoved "$1")"
 
         # declare vars for methods
-        RequestPath="/$(PrintExtractedHTTPHost "${sourcePath}")"
+        RequestPath="/$(PrintExtractedHTTPHost "${s3Path}")"
         if [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; then MaxKeys=1000; fi
         Prefix=$(EncodeUri "$(PrintExtractedHTTPPath "$1")")
         CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
         # run
-        response=$(LawsStdoutCallAPIS3Get)
+        response=$(CallAPIS3GET)
 
         # if error
         if ContainRegex '</Error>' "${response}"; then
-          # if exist PermanentRedirect, declare new AWSAPIEndpoint and run LawsStdoutList
+          # if exist PermanentRedirect, declare new AWSAPIEndpoint and run PrintS3List
           if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
             AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
-            LawsStdoutList "$@"
+            PrintS3List "$@"
           fi
 
           # print error to stderr
@@ -859,10 +1039,10 @@ ERROR
           echo "${response}" > /dev/stderr
         fi
 
-        # if exist NextContinuationToken, declare ContinuationToken and run LawsStdoutList
+        # if exist NextContinuationToken, declare ContinuationToken and run PrintS3List
         if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
           ContinuationToken=$(EncodeUri "$(PrintExtractedXMLValue 'NextContinuationToken' "${response}")")
-          LawsStdoutList "$@"
+          PrintS3List "$@"
         fi
         ;;
     esac
@@ -870,17 +1050,17 @@ ERROR
 
   LawsStdoutGet() {
     # vars common
-    sourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsStdoutGet(): requires \"sourcePath\" as \$1")"}")"
+    s3Path="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsStdoutGet(): requires \"s3Path\" as \$1")"}")"
 
     # vars for methods
     HTTPMethod='GET'
     HashedPayload="$(ConvertSHA256Hash '')"
-    RequestPath="/$(EncodeUriWithoutSlash "${sourcePath}")"
+    RequestPath="/$(EncodeUriWithoutSlash "${s3Path}")"
     CanonicalQueryString=''
 
     # run
     tmpFile=$(mktemp)
-    LawsStdoutCallAPIS3Get > "${tmpFile}"
+    CallAPIS3GET > "${tmpFile}"
     response=$(cat "${tmpFile}")
 
     # error or not
@@ -905,10 +1085,10 @@ ERROR
 
     # if no args, list buckets, else list objects by passed bucket
     if [ "$#" = 0 ]; then
-      LawsStdoutList
+      PrintS3List
     else 
       for arg in "$@"; do
-        LawsStdoutList "${arg}"
+        PrintS3List "${arg}"
       done
     fi
   }
@@ -932,7 +1112,7 @@ ERROR
     destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsSubCommandCopy(): requires \"destinationPath\" as \$2")"}")"
 
     # vars about bucket
-    responseListBucket=$(LawsStdoutList)
+    responseListBucket=$(PrintS3List)
     destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
 
     # vars about path
@@ -949,13 +1129,7 @@ ERROR
       CanonicalQueryString=''
 
       # Call API
-      response=$(
-        curl -ksS -X "${HTTPMethod}" \
-          -H "$(LawsStdoutHeader)" \
-          -H "Authorization: $(LawsStdoutAuthorization)" \
-          -T "${sourcePath}" \
-          "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
-      )
+      response=$(CallAPIS3PUT)
 
       if ContainRegex '</Error>' "${response}"; then
         return 1
