@@ -973,20 +973,22 @@ ERROR
   #   DateYMD required
   #   STSToken option
   # Arguments:
-  #   no
+  #   $1 S3 Path
   # Stdin:
   #   no
   # Stdout:
-  #   Signature
+  #   List of Objects
   # Stderr:
   #   no
   # Return:
   #   0 always
   ##
-  PrintS3List() {
+  PrintS3List() { (
     # declare vars for methods
     HTTPMethod='GET'
     HashedPayload="$(ConvertSHA256Hash '')"
+
+    # TODO: divide "PrintS3ListBuckets" AND "PrintS3ListObjects"
 
     # check options
     case "$1" in
@@ -1012,9 +1014,13 @@ ERROR
 
         # declare vars for methods
         RequestPath="/$(PrintExtractedHTTPHost "${s3Path}")"
-        if [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; then MaxKeys=1000; fi
         Prefix=$(EncodeUri "$(PrintExtractedHTTPPath "$1")")
-        CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")list-type=2&max-keys=${MaxKeys}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
+        { [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; } && MaxKeys=1000
+
+        # CanonicalQueryString
+        CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
+        CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
+        CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
         # run
         response=$(CallAPIS3GET)
@@ -1034,7 +1040,8 @@ ERROR
 
         # display edited response
         if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then
-          PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
+          PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
+            | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
         else
           echo "${response}" > /dev/stderr
         fi
@@ -1046,11 +1053,34 @@ ERROR
         fi
         ;;
     esac
-  }
+  ) }
 
-  LawsStdoutGet() {
+  ##
+  # Print S3 S3 Get Object
+  # EnvironmentVariables:
+  #   AWSSecretAccessKey required
+  #   AWSAPIEndpoint required
+  #   HTTPMethod required
+  #   RequestPath required
+  #   CanonicalQueryString required
+  #   HashedPayload required
+  #   DateISO8601 required
+  #   DateYMD required
+  #   STSToken option
+  # Arguments:
+  #   $1 S3 Object Path
+  # Stdin:
+  #   no
+  # Stdout:
+  #   Object contents
+  # Stderr:
+  #   no
+  # Return:
+  #   0 always
+  ##
+  PrintS3GetObject() { (
     # vars common
-    s3Path="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsStdoutGet(): requires \"s3Path\" as \$1")"}")"
+    s3Path="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "PrintS3GetObject(): requires \"s3Path\" as \$1")"}")"
 
     # vars for methods
     HTTPMethod='GET'
@@ -1067,7 +1097,7 @@ ERROR
     if ContainRegex '</Error>' "${response}"; then
       if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
         AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
-        LawsStdoutGet "$@"
+        PrintS3GetObject "$@"
       fi
 
       # print error to stderr
@@ -1077,7 +1107,7 @@ ERROR
 
     # if empty file, remove
     [ ! -s "${tmpFile}" ] || cat "${tmpFile}"
-  }
+  )}
 
   LawsSubCommandLs() {
     # if args contain "-h" or "--help" or "help" or ..., display README
@@ -1099,7 +1129,7 @@ ERROR
 
     # loop by the number of arguments.
     for arg in "$@"; do
-      LawsStdoutGet "${arg}"
+      PrintS3GetObject "${arg}"
     done
   }
 
@@ -1141,7 +1171,7 @@ ERROR
     elif [ "${sourcePathExist}" ] && [ "${destinationBucketExist}" ]; then
       # GET
       tmpFileForS3ToS3=$(mktemp)
-      LawsStdoutGet "${sourcePath}" > "${tmpFileForS3ToS3}"
+      PrintS3GetObject "${sourcePath}" > "${tmpFileForS3ToS3}"
 
       # PUT
       response=$(LawsSubCommandCopy "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
@@ -1158,10 +1188,10 @@ ERROR
     elif [ "${sourcePathExist}" ]; then
 
       if [ -d "${destinationPath}" ]; then
-        LawsStdoutGet "${sourcePath}" > "${destinationPath}/$(basename -- "${sourcePath}")"
+        PrintS3GetObject "${sourcePath}" > "${destinationPath}/$(basename -- "${sourcePath}")"
         PrintErrLog I "downloaded ${sourcePath} to ${destinationPath}/$(basename -- "${sourcePath}")"
       elif [ ! -d "${destinationPath}" ] && [ -d "$(dirname "${destinationPath}")" ]; then
-        LawsStdoutGet "${sourcePath}" > "${destinationPath}"
+        PrintS3GetObject "${sourcePath}" > "${destinationPath}"
         PrintErrLog I "downloaded ${sourcePath} to ${destinationPath}"
       else
         PrintErrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${sourcePath}\"")"
