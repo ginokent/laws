@@ -3,24 +3,28 @@
 
 # TODO: make more readable.
 
-# If in non interactive shell ( "$-" not containing "i" ), execute "laws" as command.
+##
+# If in non interactive shell ( "$-" not containing "i" ),
+# execute "laws" as command.
+##
 if ! { echo "$-" | grep -q 'i'; }; then
 
-  # If an error occurs, terminate abnormally.
+  # If an error occurs, exit abnormally.
   set -e
 
   # Global variables
-  readonly VERSION='0.1.4'
+  readonly VERSION='0.1.5'
   readonly PROGRAM_NAME="$(basename -- "$0")"
 
   # When exiting, clean up temporary files.
-  trap '
+  trap '{
     if [ -f "${tmpFile}" ]; then
       rm -f ${tmpFile}
     fi
     if [ -f "${tmpFileForS3ToS3}" ]; then
       rm -f ${tmpFileForS3ToS3}
-    fi' EXIT
+    fi
+  }' EXIT
 
   ##
   # Output README
@@ -143,7 +147,7 @@ README
   #   0 always
   ##
   PrintDateUTC() { (
-    LANG=C TZ=UTC date +'%Y%m%dT%H%M%SZ'
+    LC_ALL=C TZ=UTC date +'%Y%m%dT%H%M%SZ'
   )}
 
   ##
@@ -172,6 +176,7 @@ README
       f|F) tag='[FATAL]' ;;
       e|E) tag='[ERROR]' ;;
       w|W) tag='[WARN] ' ;;
+      d|D) tag='[DEBUG]' ;;
         *) tag='[INFO] ' ;;
     esac
 
@@ -184,7 +189,7 @@ README
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 content to be checked
+  #   $1 content to be checked containing multi bytes characters
   # Stdin:
   #   no
   # Stdout:
@@ -192,15 +197,11 @@ README
   # Stderr:
   #   no
   # Return:
-  #   0 containing
-  #   1 NOT containing
+  #   0 $1 contain multi bytes characters
+  #   1 $1 NOT contain multi bytes characters
   ##
   ContainMultiBytesChar() { (
-    # Local vars
-    data="$1"
-
-    # Check containing
-    echo "${data}" | LANG=C grep -Evq '^[[:cntrl:][:print:]]*$'
+    echo "$1" | LC_ALL=C grep -Evq '^[[:cntrl:][:print:]]*$'
   )}
 
   ##
@@ -217,16 +218,11 @@ README
   # Stderr:
   #   no
   # Return:
-  #   0 containing
-  #   1 NOT containing
+  #   0 $2 contain $1
+  #   1 $2 NOT contain $1
   ##
   ContainRegex() { (
-    # Local vars
-    pattern="${1:?"$(PrintErrLog F "ContainRegex(): requires \"pattern\" as \$1")"}"
-    data="$2"
-
-    # Check containing
-    echo "${data}" | grep -Eq -- "${pattern}"
+    echo "$2" | grep -Eq -- "$1"
   )}
 
   ##
@@ -234,8 +230,7 @@ README
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 regex pattern
-  #   $2 content to be checked containing help option
+  #   $* content to be checked by pattern
   # Stdin:
   #   no
   # Stdout:
@@ -243,8 +238,8 @@ README
   # Stderr:
   #   no
   # Return:
-  #   0 containing
-  #   1 NOT containing
+  #   0 arguments contain help option
+  #   1 arguments NOT contain help option
   ##
   ContainHelpOption() { (
     #                  "-h" "--help"           "a -h b" "a --help b"  "help"
@@ -256,7 +251,7 @@ README
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $@ commands
+  #   $@ dependent commands
   # Stdin:
   #   no
   # Stdout:
@@ -264,8 +259,8 @@ README
   # Stderr:
   #   no
   # Return:
-  #   0 exist
-  #   1 NOT exist, EXIT immediately
+  #   0 commands exist
+  #   1 commands NOT exist, EXIT immediately
   ##
   CheckDependency() { (
     for cmd in "$@"; do
@@ -282,12 +277,12 @@ README
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 ini file pattern like "[foobar]"
+  #   $1 ini section. if extract "[foo]" section, pass "foo" as $1
   #   $2 ini file path
   # Stdin:
   #   no
   # Stdout:
-  #   string rarsed ini content as shell vars
+  #   string string parsed ini content as shell vars
   # Stderr:
   #   no
   # Return:
@@ -308,15 +303,15 @@ README
   )}
 
   ##
-  # Convert hexadecimal
+  # Convert data ($1) to hexadecimal
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 content converted to hexadecimal
+  #   $1 string
   # Stdin:
   #   no
   # Stdout:
-  #   string converted hexadecimal data
+  #   string string that being converted to hexadecimal
   # Stderr:
   #   no
   # Return:
@@ -327,16 +322,16 @@ README
   )}
 
   ##
-  # Convert $2 (sha256 HMAC) by $1
+  # Hash-based Message Authentication Code data ($2) by key ($1)
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 HEXADECIMAL key
-  #   $2 data be converted
+  #   $1 hexkey
+  #   $2 string
   # Stdin:
   #   no
   # Stdout:
-  #   string converted data
+  #   string string that being Hash-based Message Authentication Code
   # Stderr:
   #   no
   # Return:
@@ -347,15 +342,15 @@ README
   )}
 
   ##
-  # Convert $1 by sha256
+  # SHA256 Hash data ($1)
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 data
+  #   $1 string
   # Stdin:
   #   no
   # Stdout:
-  #   string converted data
+  #   string string that being SHA256 hashed 
   # Stderr:
   #   no
   # Return:
@@ -366,15 +361,15 @@ README
   )}
 
   ##
-  # Print string scheme+slash+slash ( like http:// https:// s3:// ssh:// ... ) removed
+  # Print string without scheme+slash+slash ( like http:// https:// s3:// ssh:// ... )
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 data
+  #   $1 URI string
   # Stdin:
   #   no
   # Stdout:
-  #   string removed "s3://"
+  #   string removed scheme+slash+slash like "s3://"
   # Stderr:
   #   no
   # Return:
@@ -389,7 +384,8 @@ README
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 data
+  #   $1 pattern
+  #   $2 string
   # Stdin:
   #   no
   # Stdout:
@@ -400,9 +396,7 @@ README
   #   0 always
   ##
   PrintExtractedByPattern() { (
-    pattern="${1:?"$(PrintErrLog F "PrintExtractedByPattern(): requires \"pattern\" as \$1")"}"
-    data="${2:?"$(PrintErrLog F "PrintExtractedByPattern(): requires \"data\" as \$2")"}"
-    echo "${data}" | grep -Eo -- "${pattern}"
+    echo "$2" | grep -Eo -- "$1"
   )}
 
   ##
@@ -411,20 +405,18 @@ README
   #   no
   # Arguments:
   #   $1 XML tag
-  #   $2 extracted data
+  #   $2 EML string
   # Stdin:
   #   no
   # Stdout:
-  #   string extracted by XML tag
+  #   string extracted string by XML tag
   # Stderr:
   #   no
   # Return:
   #   0 always
   ##
   PrintExtractedXMLValue() { (
-    tagName="${1:?"$(PrintErrLog F "PrintExtractedXMLValue(): requires \"tagName\" as \$1")"}"
-    data="${2:?"$(PrintErrLog F "PrintExtractedXMLValue(): requires \"data\" as \$2")"}"
-    echo "${data}" | grep -Eo "<${tagName}>.*</${tagName}>" | sed "s|</?${tagName}>||g"
+    echo "$2" | grep -Eo "<$1>.*</$1>" | sed "s|</?$1>||g"
   )}
 
   ##
@@ -432,11 +424,11 @@ README
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 uri
+  #   $1 URI
   # Stdin:
   #   no
   # Stdout:
-  #   string extracted host
+  #   string string host extracted
   # Stderr:
   #   no
   # Return:
@@ -451,11 +443,11 @@ README
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 uri
+  #   $1 URI
   # Stdin:
   #   no
   # Stdout:
-  #   string extracted path
+  #   string string path extracted
   # Stderr:
   #   no
   # Return:
@@ -466,29 +458,28 @@ README
   )}
 
   ##
-  # Encode uri string
+  # Encode URI string
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 uri
+  #   $1 URI
   # Stdin:
   #   no
   # Stdout:
-  #   string uri encoded
+  #   string URI encoded
   # Stderr:
   #   no
   # Return:
   #   0 success to encode
-  #   1 ContainMultiBytesChar, EXIT immediately
+  #   1 when contain multi bytes characters, EXIT immediately
   ##
   EncodeUri() { (
-    data="$1"
-    if ContainMultiBytesChar "${data}"; then
+    if { ContainMultiBytesChar "$1"; }; then
       PrintErrLog E 'containing multi bytes char'
       # If multi-byte characters are included, abnormal termination immediately.
       exit 1
     fi
-    LC_COLLATE=C
+    LC_ALL=C
     # shellcheck disable=SC2059
     printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
       case "$LINE" in
@@ -503,29 +494,28 @@ README
   )}
 
   ##
-  # Encode uri string without slash /
+  # Encode URI string without slash /
   # EnvironmentVariables:
   #   no
   # Arguments:
-  #   $1 uri
+  #   $1 URI
   # Stdin:
   #   no
   # Stdout:
-  #   string uri encoded
+  #   string URI encoded without slash /
   # Stderr:
   #   no
   # Return:
-  #   0 success to encode uri
-  #   1 ContainMultiBytesChar, EXIT immediately
+  #   0 success to encode URI
+  #   1 when contain multi bytes characters, EXIT immediately
   ##
   EncodeUriWithoutSlash() { (
-    data="$1"
-    if ContainMultiBytesChar "${data}"; then
+    if { ContainMultiBytesChar "$1"; }; then
       PrintErrLog E 'containing multi bytes char'
       # If multi-byte characters are included, abnormal termination immediately.
       exit 1
     fi
-    LC_COLLATE=C
+    LC_ALL=C
     # shellcheck disable=SC2059
     printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
       case "$LINE" in
@@ -571,7 +561,7 @@ README
     fi
 
     # 3. meta-data
-    if ! curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; then
+    if ! { curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; }; then
       PrintErrLog E "$(cat <<'ERROR'
 
 PrintAWSRegion(): Not specified AWS Region
@@ -613,14 +603,16 @@ ERROR
   #   no
   # Return:
   #   0 print AWS API Endpoint
-  #   1 when pass un-supported service
+  #   1 when un-supported service
   ##
   PrintAWSAPIEndpoint() { (
     # If already "AWSAPIEndpoint" defined, return normally without doing anything
     [ -z "${AWSAPIEndpoint}" ] || { echo "${AWSAPIEndpoint}"; return 0; }
+
     # Local variables
     service="${1:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"service\" as \$1")"}"
     region="${2:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"region\" as \$2")"}"
+
     # switch by service
     case "${service}" in
       s3) [ "${region}" = us-east-1 ] && echo 's3.amazonaws.com' || echo "s3-${region}.amazonaws.com" ;;
@@ -708,6 +700,7 @@ Follow the steps below to register your credentials:
 ---
 ERROR
     )"
+
     # If the secret key can not be acquired, EXIT abnormally immediately
     exit 1
   }
@@ -716,7 +709,7 @@ ERROR
   # Print Header for Request to AWS API
   # EnvironmentVariables:
   #   AWSAPIEndpoint required
-  #   HTTPMethod required
+  #   #HTTPMethod required # Unnecessary?
   #   HashedPayload required
   #   DateISO8601 required
   #   STSToken option
@@ -733,7 +726,7 @@ ERROR
   ##
   PrintHTTPHeader() { (
     printf '%s\n' "host:${AWSAPIEndpoint}"
-    #[ "${HTTPMethod}" != PUT ] || printf '%s\n' 'content-type:text/plain' # PUT # Unnecessary?
+    #[ "${HTTPMethod}" != PUT ] || printf '%s\n' 'content-type:text/plain' # Unnecessary?
     printf '%s\n' "x-amz-content-sha256:${HashedPayload}"
     printf '%s\n' "x-amz-date:${DateISO8601}"
     [ -z "${STSToken}" ] || printf '%s\n' "x-amz-security-token:${STSToken}"
@@ -743,11 +736,7 @@ ERROR
   # Print CanonicalHeader of AWS Signature Version 4
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
   # EnvironmentVariables:
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   STSToken option
+  #   depends on PrintHTTPHeader
   # Arguments:
   #   no
   # Stdin:
@@ -767,13 +756,11 @@ ERROR
   # Print CanonicalRequest of AWS Signature Version 4
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
   # EnvironmentVariables:
-  #   AWSAPIEndpoint required
+  #   depends on PrintCanonicalHeader
   #   HTTPMethod required
   #   RequestPath required
   #   CanonicalQueryString required
   #   HashedPayload required
-  #   DateISO8601 required
-  #   STSToken option
   # Arguments:
   #   no
   # Stdin:
@@ -799,14 +786,11 @@ ERROR
   # Print StringToSign of AWS Signature Version 4
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
   # EnvironmentVariables:
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
+  #   depends on PrintAWSRegion
+  #   depends on ConvertSHA256Hash
+  #   depends on PrintCanonicalRequest
   #   DateISO8601 required
   #   DateYMD required
-  #   STSToken option
   # Arguments:
   #   no
   # Stdin:
@@ -829,15 +813,12 @@ ERROR
   # Print Signature of AWS Signature Version 4
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
   # EnvironmentVariables:
+  #   depends on ConvertHMAC
+  #   depends on ConvertHex
+  #   depends on PrintAWSRegion
+  #   depends on PrintStringtoSign
   #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
   #   DateYMD required
-  #   STSToken option
   # Arguments:
   #   no
   # Stdin:
@@ -867,21 +848,17 @@ ERROR
   # Print Authorization of AWS Signature Version 4
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
+  #   depends on PrintAWSRegion
+  #   depends on PrintCanonicalHeader
+  #   depends on PrintSignature
+  #   AWSAccessKeyId required
   #   DateYMD required
-  #   STSToken option
   # Arguments:
   #   no
   # Stdin:
   #   no
   # Stdout:
-  #   Signature
+  #   Authorization
   # Stderr:
   #   no
   # Return:
@@ -900,15 +877,12 @@ ERROR
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectGET.html
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
+  #   depends on PrintCanonicalHeader
+  #   depends on PrintAuthorization
   #   HTTPMethod required
+  #   AWSAPIEndpoint required
   #   RequestPath required
   #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   DateYMD required
-  #   STSToken option
   # Arguments:
   #   no
   # Stdin:
@@ -932,15 +906,13 @@ ERROR
   # Call S3 API PUT
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectPUT.html
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
+  #   depends on PrintHTTPHeader
+  #   depends on PrintAuthorization
   #   HTTPMethod required
+  #   SourcePath required
+  #   AWSAPIEndpoint required
   #   RequestPath required
   #   CanonicalQueryString option
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   DateYMD required
-  #   STSToken option
   # Arguments:
   #   no
   # Stdin:
@@ -957,7 +929,7 @@ ERROR
     curl -ksS -X "${HTTPMethod}" \
       -H "$(PrintHTTPHeader)" \
       -H "Authorization: $(PrintAuthorization)" \
-      -T "${sourcePath}" \
+      -T "${SourcePath}" \
       "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
   )}
 
@@ -965,6 +937,7 @@ ERROR
   # Print S3 List Buckets
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
   # EnvironmentVariables:
+  #   depends on ConvertSHA256Hash
   #   depends on CallAPIS3GET
   # Arguments:
   #   "/" or ""
@@ -997,12 +970,15 @@ ERROR
   ) }
 
   ##
-  # Print S3 List Objects
+  # Print S3 List Object
   #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
   # EnvironmentVariables:
   #   depends on CallAPIS3GET
+  #   MaxKeys option
+  #   ContinuationToken option
+  #   Prefix option
   # Arguments:
-  #   $1 S3 Path
+  #   $1 S3 Object Path
   # Stdin:
   #   no
   # Stdout:
@@ -1064,15 +1040,7 @@ ERROR
   ##
   # Print S3 S3 Get Object contents
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   DateYMD required
-  #   STSToken option
+  #   depends on CallAPIS3GET
   # Arguments:
   #   $1 S3 Object Path
   # Stdin:
@@ -1119,15 +1087,8 @@ ERROR
   ##
   # laws s3 ls
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   DateYMD required
-  #   STSToken option
+  #   depends on PrintS3ListBuckets
+  #   depends on PrintS3ListObjects
   # Arguments:
   #   $@ S3 Objects Paths
   # Stdin:
@@ -1157,15 +1118,7 @@ ERROR
   ##
   # laws s3 cat
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   DateYMD required
-  #   STSToken option
+  #   depends on PrintS3GetObject
   # Arguments:
   #   $@ S3 Objects Paths
   # Stdin:
@@ -1191,15 +1144,11 @@ ERROR
   ##
   # laws s3 cp
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   DateYMD required
-  #   STSToken option
+  #   depends on LawsS3Ls
+  #   depends on PrintS3ListBuckets
+  #   depends on PrintS3ListObjects
+  #   depends on PrintS3GetObject
+  #   depends on CallAPIS3PUT
   # Arguments:
   #   $1 source path
   #   $2 destination path
@@ -1218,11 +1167,11 @@ ERROR
     if [ "$#" != 2 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
 
     # vars common
-    sourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"sourcePath\" as \$1")"}")"
+    SourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}")"
     destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}")"
 
-    #if [ "${sourcePath}" = '-' ]; then
-    #  sourcePath='/dev/stdin'
+    #if [ "${SourcePath}" = '-' ]; then
+    #  SourcePath='/dev/stdin'
     #fi
 
     if [ "${destinationPath}" = '-' ]; then
@@ -1234,15 +1183,15 @@ ERROR
     destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
 
     # vars about path
-    responseListPath=$(LawsS3Ls "${sourcePath}" "${destinationPath}" 2>/dev/null || true)
-    sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]${sourcePath}$" || true)
+    responseListPath=$(LawsS3Ls "${SourcePath}" "${destinationPath}" 2>/dev/null || true)
+    sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]${SourcePath}$" || true)
 
     # copy local to s3 (PUT)
-    if [ -e "${sourcePath}" ] && [ "${destinationBucketExist}" ]; then
+    if [ -e "${SourcePath}" ] && [ "${destinationBucketExist}" ]; then
 
       # vars for cURL
       HTTPMethod='PUT'
-      HashedPayload="$(openssl dgst -sha256 "${sourcePath}" | sed 's/^.*[[:blank:]]//')"
+      HashedPayload="$(openssl dgst -sha256 "${SourcePath}" | sed 's/^.*[[:blank:]]//')"
       RequestPath="/$(EncodeUriWithoutSlash "${destinationPath}")"
       CanonicalQueryString=''
 
@@ -1250,63 +1199,61 @@ ERROR
       response=$(CallAPIS3PUT)
 
       if ContainRegex '</Error>' "${response}"; then
+        echo "${response}" > /dev/stderr
         return 1
       fi
 
-      PrintErrLog I "uploaded ${sourcePath} to ${destinationPath}"
+      #PrintErrLog D "uploaded ${SourcePath} to ${destinationPath}"
+      return 0
 
     # copy s3 to s3 (GET and PUT)
     elif [ "${sourcePathExist}" ] && [ "${destinationBucketExist}" ]; then
       # GET
       tmpFileForS3ToS3=$(mktemp)
-      PrintS3GetObject "${sourcePath}" > "${tmpFileForS3ToS3}"
+      PrintS3GetObject "${SourcePath}" > "${tmpFileForS3ToS3}"
 
       # PUT
       response=$(LawsS3Cp "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
 
       # If the tmp file can be uploaded, output the appropriate log.
-      if ContainRegex "uploaded.*${destinationPath}" "${response}"; then
-        PrintErrLog I "uploaded ${sourcePath} to ${destinationPath}"
-      # Otherwise, it outputs the original response.
-      else
+      if ContainRegex '</Error>' "${response}"; then
         echo "${response}" > /dev/stderr
+        return 1
       fi
+
+      #PrintErrLog D "uploaded ${SourcePath} to ${destinationPath}"
+      return 0
 
     # copy s3 to local (GET)
     elif [ "${sourcePathExist}" ]; then
 
       if [ -d "${destinationPath}" ]; then
-        PrintS3GetObject "${sourcePath}" > "${destinationPath}/$(basename -- "${sourcePath}")"
-        PrintErrLog I "downloaded ${sourcePath} to ${destinationPath}/$(basename -- "${sourcePath}")"
+        PrintS3GetObject "${SourcePath}" > "${destinationPath}/$(basename -- "${SourcePath}")"
+        #PrintErrLog D "downloaded ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
+        return 0
       elif [ ! -d "${destinationPath}" ] && [ -d "$(dirname "${destinationPath}")" ]; then
-        PrintS3GetObject "${sourcePath}" > "${destinationPath}"
-        PrintErrLog I "downloaded ${sourcePath} to ${destinationPath}"
-      else
-        PrintErrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${sourcePath}\"")"
-        return 1
+        PrintS3GetObject "${SourcePath}" > "${destinationPath}"
+        #PrintErrLog D "downloaded ${SourcePath} to ${destinationPath}"
+        return 0
       fi
 
-    else
-      PrintErrLog W "\"${sourcePath}\" and \"${destinationPath}\" not found or local files."
+      PrintErrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${SourcePath}\"")"
       return 1
     fi
+
+    PrintErrLog W "\"${SourcePath}\" and \"${destinationPath}\" not found or local files."
+    return 1
   }
 
   ##
   # laws s3 ...
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   DateYMD required
-  #   STSToken option
+  #   depends on LawsS3Ls
+  #   depends on LawsS3Cat
+  #   depends on LawsS3Cp
   # Arguments:
   #   $1 sub command
-  #   $2- sub command's arguments
+  #   $2~ sub command's arguments
   # Stdin:
   #   no
   # Stdout:
@@ -1330,19 +1277,14 @@ ERROR
   ##
   # laws ...
   # EnvironmentVariables:
-  #   AWSSecretAccessKey required
-  #   AWSAPIEndpoint required
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   DateYMD required
-  #   STSToken option
+  #   depends on LawsS3
+  #   depends on SetAWSAccessKey
+  #   PROGRAM_NAME required
+  #   VERSION required
   # Arguments:
   #   $1 sub command
   #   $2 sub command
-  #   $3- sub command's arguments
+  #   $3~ sub command's arguments
   # Stdin:
   #   no
   # Stdout:
@@ -1381,7 +1323,7 @@ ERROR
   #
   # $@ ... Pass all the arguments of the laws command.
   #
-  # e.g.
+  # like:
   #   main s3 ls s3://mybucket/path/tp/file
   ##
   main "$@"
