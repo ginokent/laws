@@ -64,7 +64,7 @@ echo "put content  : ${put}"
 echo "get content  : ${get}"
 echo "current time : ${current}"
 echo "delta time   : $((current-put))"
-if [ ${put:="0"} = ${get:="1"} ] && [ $((current-put)) -le 10 ]; then
+if [ ${put:="0"} = ${get:="1"} ] && [ $((current-put)) -le 20 ]; then
   echo; printf "\n\e[1;32m%s\e[0m\n" "`LANG=C date` [INFO]  -- Copy (PUT/GET) objects Passed ----------------"
   rm ./b ./a
 else
