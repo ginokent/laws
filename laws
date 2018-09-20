@@ -8,41 +8,42 @@
 # execute "laws" as command.
 ##
 if ! { echo "$-" | grep -q i; }; then
+# -- Non Interactive ----------------
 
-  # If an error occurs, exit abnormally.
-  set -e
+# If an error occurs, EXIT abnormally.
+set -e
 
-  # Global variables
-  readonly VERSION='0.1.6'
-  readonly PROGRAM_NAME="$(basename -- "$0")"
+# Global variables
+readonly VERSION='0.1.7'
+readonly PROGRAM_NAME="$(basename -- "$0")"
 
-  # When exiting, clean up temporary files.
-  trap '{
-    if [ -f "${tmpFile}" ]; then
-      rm -f ${tmpFile}
-    fi
-    if [ -f "${tmpFileForS3ToS3}" ]; then
-      rm -f ${tmpFileForS3ToS3}
-    fi
-  }' EXIT
+# When EXIT, clean up temporary files.
+trap '{
+  if [ -f "${tmpFile}" ]; then
+    rm -f ${tmpFile}
+  fi
+  if [ -f "${tmpFileForS3ToS3}" ]; then
+    rm -f ${tmpFileForS3ToS3}
+  fi
+}' EXIT
 
-  ##
-  # Output README
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   no
-  # Stderr:
-  #   string README
-  # Return:
-  #   0 always
-  ##
-  PrintErrReadMe() { (
-  cat <<'README' >/dev/stderr
+##
+# Output README
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   no
+# Stderr:
+#   string README
+# Return:
+#   0 always
+##
+PrintErrReadMe() { (
+cat <<'README' >/dev/stderr
 
 laws
 ====
@@ -129,440 +130,440 @@ This program relies heavily on "AWS Signature Version 4".
 
 ---
 README
-  )}
+)}
 
-  ##
-  # Output UTC date for log
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string UTC date ISO 8601 format
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintDateUTC() { (
-    LC_ALL=C TZ=UTC date +'%Y%m%dT%H%M%SZ'
-  )}
+##
+# Output UTC date for log
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string UTC date ISO 8601 format
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintDateUTC() { (
+  LC_ALL=C TZ=UTC date +'%Y%m%dT%H%M%SZ'
+)}
 
-  ##
-  # Output log
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 log level
-  #   $2 log message
-  # Stdin:
-  #   no
-  # Stdout:
-  #   no
-  # Stderr:
-  #   string log message
-  # Return:
-  #   0 always
-  ##
-  PrintErrLog() { (
-    # vars
-    level="${1:?"$(PrintDateUTC) [FATAL] PrintErrLog(): requires \"level\" as \$1"}"
-    logMessages="${2:?"$(PrintDateUTC) [FATAL] PrintErrLog(): requires \"logMessages\" as \$2"}"
-    
-    # check level
-    case "${level}" in
-      f|F) tag='[FATAL]' ;;
-      e|E) tag='[ERROR]' ;;
-      w|W) tag='[WARN] ' ;;
-      d|D) tag='[DEBUG]' ;;
-        *) tag='[INFO] ' ;;
+##
+# Output log
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 log level
+#   $2 log message
+# Stdin:
+#   no
+# Stdout:
+#   no
+# Stderr:
+#   string log message
+# Return:
+#   0 always
+##
+PrintErrLog() { (
+  # vars
+  level="${1:?"$(PrintDateUTC) [FATAL] PrintErrLog(): requires \"level\" as \$1"}"
+  logMessages="${2:?"$(PrintDateUTC) [FATAL] PrintErrLog(): requires \"logMessages\" as \$2"}"
+  
+  # check level
+  case "${level}" in
+    f|F) tag='[FATAL]' ;;
+    e|E) tag='[ERROR]' ;;
+    w|W) tag='[WARN] ' ;;
+    d|D) tag='[DEBUG]' ;;
+      *) tag='[INFO] ' ;;
+  esac
+
+  # output log message to stderr
+  printf '%s\n' "${logMessages}" | sed "s/^/$(PrintDateUTC) ${PROGRAM_NAME}[$$]: ${tag} /" >/dev/stderr
+)}
+
+##
+# Check containing multi bytes character
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 string to be checked containing multi bytes characters
+# Stdin:
+#   no
+# Stdout:
+#   no
+# Stderr:
+#   no
+# Return:
+#   0 $1 contain multi bytes characters
+#   1 $1 NOT contain multi bytes characters
+##
+ContainMultiBytesChar() { (
+  echo "$1" | LC_ALL=C grep -Evq '^[[:cntrl:][:print:]]*$'
+)}
+
+##
+# Check containing regex passed
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 regex pattern
+#   $2 string to be checked by pattern
+# Stdin:
+#   no
+# Stdout:
+#   no
+# Stderr:
+#   no
+# Return:
+#   0 string contain pattern
+#   1 string NOT contain pattenr
+##
+ContainRegex() { (
+  echo "$2" | grep -Eq -- "$1"
+)}
+
+##
+# Check containing "-h" or "--help" or "help"
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $* all arguments to be checked by pattern
+# Stdin:
+#   no
+# Stdout:
+#   no
+# Stderr:
+#   no
+# Return:
+#   0 arguments contain help option
+#   1 arguments NOT contain help option
+##
+ContainHelpOption() { (
+  #                  "-h" "--help"           "a -h b" "a --help b"  "help"
+  ContainRegex '^[[:blank:]]*\-+h(elp)?|[[:blank:]]+\-+h(elp)?|^[[:blank:]]*help[[:blank:]]*$' "$*"
+)}
+
+##
+# Check existing dependency commands in PATH
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $@ dependent commands
+# Stdin:
+#   no
+# Stdout:
+#   no
+# Stderr:
+#   no
+# Return:
+#   0 commands found in PATH, dependency OK
+#   1 commands NOT found in PATH, dependency NG, EXIT immediately
+##
+CheckDependency() { (
+  for cmd in "$@"; do
+    if ! { command -v -- "${cmd}" >/dev/null; }; then
+      PrintErrLog E "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
+      # If command not found in PATH, it terminates abnormally immediately.
+      exit 1
+    fi
+  done
+)}
+
+##
+# Parse INI file and Print stdout for eval
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 ini section. if extract "[foo]" section, pass "foo" as $1
+#   $2 ini file path
+# Stdin:
+#   no
+# Stdout:
+#   string that parsed ini content as shell vars
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+ParseINIforEval() { (
+  # For the setting in the ini file, output commands which define them as shell variables prefixed "INI_".
+  iniSectionPattern="${1:?"$(PrintErrLog F "ParseINIforEval(): requires \"iniSectionPattern\" as \$1")"}"
+  file="${2:?"$(PrintErrLog F "ParseINIforEval(): requires \"file\" as \$2")"}"
+  sed "
+    s/[[:blank:]]*\=[[:blank:]]*/=/g
+    s/[#;].*$//
+    s/[[:blank:]]*$//
+    s/^[[:blank:]]*//
+    s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/
+    " "${file}" \
+    | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
+)}
+
+##
+# Convert data ($1) to hexadecimal
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 string
+# Stdin:
+#   no
+# Stdout:
+#   string that being converted to hexadecimal
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+ConvertHex() { (
+  printf '%s' "$1" | od -v -A n -t x1 | tr -Cd '0123456789abcdefABCDEF'
+)}
+
+##
+# hash (Hash-based Message Authentication Code) string ($2) by hexkey ($1)
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 hexkey
+#   $2 string
+# Stdin:
+#   no
+# Stdout:
+#   string that being hashed by Hash-based Message Authentication Code
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+ConvertHMAC() { (
+  printf '%s' "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.*[[:blank:]]//'
+)}
+
+##
+# SHA256 Hash string ($1)
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 string
+# Stdin:
+#   no
+# Stdout:
+#   string that being SHA256 hashed 
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+ConvertSHA256Hash() { (
+  printf '%s' "$1" | openssl dgst -sha256 | sed 's/^.*[[:blank:]]//'
+)}
+
+##
+# Print string without scheme+slash+slash ( like http:// https:// s3:// ssh:// ... )
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 URI string
+# Stdin:
+#   no
+# Stdout:
+#   string that removed scheme+slash+slash (like "s3://")
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintSchemeSlashSlashRemoved() { (
+  printf '%s' "$1" | sed 's|^[^:]*://||'
+)}
+
+##
+# Print string extracted by pattern
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 pattern
+#   $2 string
+# Stdin:
+#   no
+# Stdout:
+#   string that extracted by pattern
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintExtractedByPattern() { (
+  echo "$2" | grep -Eo -- "$1"
+)}
+
+##
+# Print string extracted XML value
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 XML tag
+#   $2 XML data
+# Stdin:
+#   no
+# Stdout:
+#   value that extracted by XML tag
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintExtractedXMLValue() { (
+  echo "$2" | grep -Eo "<$1>.*</$1>" | sed "s|</*$1>||g"
+)}
+
+##
+# Print string extracted HTTP host
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 URI string
+# Stdin:
+#   no
+# Stdout:
+#   string that extracted as host
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintExtractedHTTPHost() { (
+  PrintSchemeSlashSlashRemoved "$1" | sed 's|/.*||'
+)}
+
+##
+# Print string extracted HTTP path
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 URI string
+# Stdin:
+#   no
+# Stdout:
+#   string that extracted as path
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintExtractedHTTPPath() { (
+  PrintSchemeSlashSlashRemoved "$1" | grep '/' | sed 's|^[^/]*/||'
+)}
+
+##
+# Print string that URI-Encoded
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 URI string
+# Stdin:
+#   no
+# Stdout:
+#   string that URI-encoded
+# Stderr:
+#   no
+# Return:
+#   0 success to encode
+#   1 when contain multi bytes characters
+##
+URIEncode() { (
+  if { ContainMultiBytesChar "$1"; }; then
+    PrintErrLog E 'containing multi bytes char'
+    # If multi-byte characters are included, abnormal termination immediately.
+    exit 1
+  fi
+  LC_ALL=C
+  # shellcheck disable=SC2059
+  printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
+    case "$LINE" in
+      [0-9A-Za-z._~-])
+        printf '%s' "$LINE"
+        ;;
+      *)
+        printf '%%%02X' "'$LINE"
+        ;;
     esac
+  done
+)}
 
-    # output log message to stderr
-    printf '%s\n' "${logMessages}" | sed "s/^/$(PrintDateUTC) ${PROGRAM_NAME}[$$]: ${tag} /" >/dev/stderr
-  )}
+##
+# Print string that URI-Encoded without slash /
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 URI string
+# Stdin:
+#   no
+# Stdout:
+#   string that URI-encoded without slash /
+# Stderr:
+#   no
+# Return:
+#   0 success to encode
+#   1 when contain multi bytes characters
+##
+URIEncodeWithoutSlash() { (
+  if { ContainMultiBytesChar "$1"; }; then
+    PrintErrLog E 'containing multi bytes char'
+    # If multi-byte characters are included, abnormal termination immediately.
+    exit 1
+  fi
+  LC_ALL=C
+  # shellcheck disable=SC2059
+  printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
+    case "$LINE" in
+      [/0-9A-Za-z._~-])
+        printf '%s' "$LINE"
+        ;;
+      *)
+        printf '%%%02X' "'$LINE"
+        ;;
+    esac
+  done
+)}
 
-  ##
-  # Check containing multi bytes character
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 content to be checked containing multi bytes characters
-  # Stdin:
-  #   no
-  # Stdout:
-  #   no
-  # Stderr:
-  #   no
-  # Return:
-  #   0 $1 contain multi bytes characters
-  #   1 $1 NOT contain multi bytes characters
-  ##
-  ContainMultiBytesChar() { (
-    echo "$1" | LC_ALL=C grep -Evq '^[[:cntrl:][:print:]]*$'
-  )}
+##
+# Print "AWS Region" aquired by Environment Variable "AWS_REGION" OR "~/.aws/config" OR "169.254.169.254"
+# EnvironmentVariables:
+#   AWS_REGION option
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string AWS Region
+# Stderr:
+#   no
+# Return:
+#   0 Print AWS Region
+#   1 when failed to get AWS Region
+##
+PrintAWSRegion() { (
+  # 1. try to get region from environment variable: AWS_REGION
+  [ -z "${AWS_REGION}" ] || { echo "${AWS_REGION}"; return 0; }
 
-  ##
-  # Check containing regex passed
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 regex pattern
-  #   $2 content to be checked by pattern
-  # Stdin:
-  #   no
-  # Stdout:
-  #   no
-  # Stderr:
-  #   no
-  # Return:
-  #   0 $2 contain $1
-  #   1 $2 NOT contain $1
-  ##
-  ContainRegex() { (
-    echo "$2" | grep -Eq -- "$1"
-  )}
-
-  ##
-  # Check containing "-h" or "--help" or "help"
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $* content to be checked by pattern
-  # Stdin:
-  #   no
-  # Stdout:
-  #   no
-  # Stderr:
-  #   no
-  # Return:
-  #   0 arguments contain help option
-  #   1 arguments NOT contain help option
-  ##
-  ContainHelpOption() { (
-    #                  "-h" "--help"           "a -h b" "a --help b"  "help"
-    ContainRegex '^[[:blank:]]*\-+h(elp)?|[[:blank:]]+\-+h(elp)?|^[[:blank:]]*help[[:blank:]]*$' "$*"
-  )}
-
-  ##
-  # Check existing dependency commands in PATH
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $@ dependent commands
-  # Stdin:
-  #   no
-  # Stdout:
-  #   no
-  # Stderr:
-  #   no
-  # Return:
-  #   0 commands exist
-  #   1 commands NOT exist, EXIT immediately
-  ##
-  CheckDependency() { (
-    for cmd in "$@"; do
-      if ! { command -v -- "${cmd}" >/dev/null; }; then
-        PrintErrLog E "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
-        # If command not found in PATH, it terminates abnormally immediately.
-        exit 1
-      fi
-    done
-  )}
-
-  ##
-  # Parse INI file and Print stdout
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 ini section. if extract "[foo]" section, pass "foo" as $1
-  #   $2 ini file path
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string string parsed ini content as shell vars
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  ParseINIforEval() { (
-    # For the setting in the ini file, output commands which define them as shell variables prefixed "INI_".
-    iniSectionPattern="${1:?"$(PrintErrLog F "ParseINIforEval(): requires \"iniSectionPattern\" as \$1")"}"
-    file="${2:?"$(PrintErrLog F "ParseINIforEval(): requires \"file\" as \$2")"}"
-    sed "
-      s/[[:blank:]]*\=[[:blank:]]*/=/g
-      s/[#;].*$//
-      s/[[:blank:]]*$//
-      s/^[[:blank:]]*//
-      s/^\(.*\)=\([^\"\']*\)$/INI_\1=\"\2\"/
-      " "${file}" \
-      | sed -n "/^\[${iniSectionPattern}\]/,/\[/{/.*\=.*/p;}"
-  )}
-
-  ##
-  # Convert data ($1) to hexadecimal
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 string
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string string that being converted to hexadecimal
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  ConvertHex() { (
-    printf '%s' "$1" | od -v -A n -t x1 | tr -Cd '0123456789abcdefABCDEF'
-  )}
-
-  ##
-  # Hash-based Message Authentication Code data ($2) by key ($1)
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 hexkey
-  #   $2 string
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string string that being Hash-based Message Authentication Code
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  ConvertHMAC() { (
-    printf '%s' "$2" | openssl dgst -sha256 -mac HMAC -macopt hexkey:"$1" | sed 's/^.*[[:blank:]]//'
-  )}
-
-  ##
-  # SHA256 Hash data ($1)
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 string
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string string that being SHA256 hashed 
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  ConvertSHA256Hash() { (
-    printf '%s' "$1" | openssl dgst -sha256 | sed 's/^.*[[:blank:]]//'
-  )}
-
-  ##
-  # Print string without scheme+slash+slash ( like http:// https:// s3:// ssh:// ... )
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 URI string
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string removed scheme+slash+slash like "s3://"
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintSchemeSlashSlashRemoved() { (
-    printf '%s' "$1" | sed 's|^[^:]*://||'
-  )}
-
-  ##
-  # Print string extracted by pattern
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 pattern
-  #   $2 string
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string extracted by pattern
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintExtractedByPattern() { (
-    echo "$2" | grep -Eo -- "$1"
-  )}
-
-  ##
-  # Print string extracted XML value
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 XML tag
-  #   $2 XML string
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string extracted string by XML tag
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintExtractedXMLValue() { (
-    echo "$2" | grep -Eo "<$1>.*</$1>" | sed "s|</*$1>||g"
-  )}
-
-  ##
-  # Print string extracted HTTP host
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 URI
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string string host extracted
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintExtractedHTTPHost() { (
-    PrintSchemeSlashSlashRemoved "$1" | sed 's|/.*||'
-  )}
-
-  ##
-  # Print string extracted HTTP path
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 URI
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string string path extracted
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintExtractedHTTPPath() { (
-    PrintSchemeSlashSlashRemoved "$1" | grep '/' | sed 's|^[^/]*/||'
-  )}
-
-  ##
-  # Encode URI string
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 URI
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string URI encoded
-  # Stderr:
-  #   no
-  # Return:
-  #   0 success to encode
-  #   1 when contain multi bytes characters, EXIT immediately
-  ##
-  EncodeUri() { (
-    if { ContainMultiBytesChar "$1"; }; then
-      PrintErrLog E 'containing multi bytes char'
-      # If multi-byte characters are included, abnormal termination immediately.
-      exit 1
+  # 2. try to get region from config file: ~/.aws/config
+  if [ -r ~/.aws/config ]; then
+    INI_region=''
+    eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
+    if [ "${INI_region}" ]; then
+      echo "${INI_region}"
+    else
+      PrintErrLog W "PrintAWSRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
     fi
-    LC_ALL=C
-    # shellcheck disable=SC2059
-    printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
-      case "$LINE" in
-        [0-9A-Za-z._~-])
-          printf '%s' "$LINE"
-          ;;
-        *)
-          printf '%%%02X' "'$LINE"
-          ;;
-      esac
-    done
-  )}
+  fi
 
-  ##
-  # Encode URI string without slash /
-  # EnvironmentVariables:
-  #   no
-  # Arguments:
-  #   $1 URI
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string URI encoded without slash /
-  # Stderr:
-  #   no
-  # Return:
-  #   0 success to encode URI
-  #   1 when contain multi bytes characters, EXIT immediately
-  ##
-  EncodeUriWithoutSlash() { (
-    if { ContainMultiBytesChar "$1"; }; then
-      PrintErrLog E 'containing multi bytes char'
-      # If multi-byte characters are included, abnormal termination immediately.
-      exit 1
-    fi
-    LC_ALL=C
-    # shellcheck disable=SC2059
-    printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
-      case "$LINE" in
-        [/0-9A-Za-z._~-])
-          printf '%s' "$LINE"
-          ;;
-        *)
-          printf '%%%02X' "'$LINE"
-          ;;
-      esac
-    done
-  )}
-
-  ##
-  # Print "AWS Region" aquired by Environment Variable "AWS_REGION" OR "~/.aws/config" OR "169.254.169.254"
-  # EnvironmentVariables:
-  #   AWS_REGION option
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string AWS Region
-  # Stderr:
-  #   no
-  # Return:
-  #   0 Print AWS Region
-  #   1 when failed to get AWS Region
-  ##
-  PrintAWSRegion() { (
-    # 1. environment variable: AWS_REGION
-    [ -z "${AWS_REGION}" ] || { echo "${AWS_REGION}"; return 0; }
-
-    # 2. config file: ~/.aws/config
-    if [ -r ~/.aws/config ]; then
-      INI_region=''
-      eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
-      if [ "${INI_region}" ]; then
-        echo "${INI_region}"
-      else
-        PrintErrLog W "PrintAWSRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
-      fi
-    fi
-
-    # 3. meta-data
-    if ! { curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; }; then
-      PrintErrLog E "$(cat <<'ERROR'
+  # 3. try to get region from AWS meta-data
+  if ! { curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; }; then
+    PrintErrLog E "$(cat <<'ERROR'
 
 PrintAWSRegion(): Not specified AWS Region
 Follow the steps below to register AWS region:
@@ -580,106 +581,106 @@ Follow the steps below to register AWS region:
 
 ---
 ERROR
-      )"
-      # If a region is not specified, abnormally terminates immediately.
-      exit 1
-    fi
-  )}
+    )"
+    # If a region is not specified, abnormally terminates immediately.
+    exit 1
+  fi
+)}
 
-  ##
-  # Print "AWS API Endpoint" aquired by Service Name AND AWS Region
+##
+# Print "AWS API Endpoint" aquired by Service Name AND AWS Region
+# If already "AWSAPIEndpoint" defined, return normally without doing anything
+# EnvironmentVariables:
+#   AWSAPIEndpoint option
+#   AWS_REGION option
+# Arguments:
+#   $1 Service Name
+#   $2 AWS Region
+# Stdin:
+#   no
+# Stdout:
+#   string AWS API Endpoint
+# Stderr:
+#   no
+# Return:
+#   0 print AWS API Endpoint
+#   1 when un-supported service
+##
+PrintAWSAPIEndpoint() { (
   # If already "AWSAPIEndpoint" defined, return normally without doing anything
-  # EnvironmentVariables:
-  #   AWSAPIEndpoint option
-  #   AWS_REGION option
-  # Arguments:
-  #   $1 Service Name
-  #   $2 AWS Region
-  # Stdin:
-  #   no
-  # Stdout:
-  #   string AWS API Endpoint
-  # Stderr:
-  #   no
-  # Return:
-  #   0 print AWS API Endpoint
-  #   1 when un-supported service
-  ##
-  PrintAWSAPIEndpoint() { (
-    # If already "AWSAPIEndpoint" defined, return normally without doing anything
-    [ -z "${AWSAPIEndpoint}" ] || { echo "${AWSAPIEndpoint}"; return 0; }
+  [ -z "${AWSAPIEndpoint}" ] || { echo "${AWSAPIEndpoint}"; return 0; }
 
-    # Local variables
-    service="${1:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"service\" as \$1")"}"
-    region="${2:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"region\" as \$2")"}"
+  # Local variables
+  service="${1:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"service\" as \$1")"}"
+  region="${2:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"region\" as \$2")"}"
 
-    # switch by service
-    case "${service}" in
-      s3) [ "${region}" = us-east-1 ] && echo 's3.amazonaws.com' || echo "s3-${region}.amazonaws.com" ;;
-       *) PrintErrLog E "${service} not support"; return 1 ;;
-    esac
-  )}
+  # switch by service
+  case "${service}" in
+    s3) [ "${region}" = us-east-1 ] && echo 's3.amazonaws.com' || echo "s3-${region}.amazonaws.com" ;;
+     *) PrintErrLog E "${service} not support"; return 1 ;;
+  esac
+)}
 
-  ##
-  # Set global variables AWSAccessKeyId AND AWSSecretAccessKey
+##
+# Set global variables AWSAccessKeyId AND AWSSecretAccessKey
+# If already "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally without doing anything
+# EnvironmentVariables:
+#   AWSAccessKeyId option
+#   AWSSecretAccessKey option
+#   AWS_ACCESS_KEY_ID option
+#   AWS_SECRET_ACCESS_KEY option
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   no
+# Stderr:
+#   no
+# Return:
+#   0 set AWSAccessKeyId AND AWSSecretAccessKey
+#   1 EXIT immediately when failed to set AWSAccessKeyId AND AWSSecretAccessKey
+##
+SetAWSAccessKey() {
   # If already "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally without doing anything
-  # EnvironmentVariables:
-  #   AWSAccessKeyId option
-  #   AWSSecretAccessKey option
-  #   AWS_ACCESS_KEY_ID option
-  #   AWS_SECRET_ACCESS_KEY option
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   no
-  # Stderr:
-  #   no
-  # Return:
-  #   0 set AWSAccessKeyId AND AWSSecretAccessKey
-  #   1 EXIT immediately when failed to set AWSAccessKeyId AND AWSSecretAccessKey
-  ##
-  SetAWSAccessKey() {
-    # If already "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally without doing anything
+  if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ]; then
+    return 0
+  fi
+
+  # 1. try to get credentials from environment variables: AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+  if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
+    AWSAccessKeyId="${AWS_ACCESS_KEY_ID}" AWSSecretAccessKey="${AWS_SECRET_ACCESS_KEY}"
+    # If "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally
     if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ]; then
       return 0
     fi
+  fi
 
-    # get credentials from environment variables
-    if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
-      AWSAccessKeyId="${AWS_ACCESS_KEY_ID}" AWSSecretAccessKey="${AWS_SECRET_ACCESS_KEY}"
-      # If "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally
-      if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ]; then
-        return 0
-      fi
-    fi
-
-    # get credentials from `~/.aws/config` and `~/.aws/credentials`
-    if [ -r ~/.aws/credentials ]; then
-      INI_aws_access_key_id='' INI_aws_secret_access_key=''
-      eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
-      AWSAccessKeyId="${INI_aws_access_key_id}" AWSSecretAccessKey="${INI_aws_secret_access_key}"
-      # If "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally
-      if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ]; then
-        return 0
-      fi
-    fi
-
-    # get credentials from Instance Profile
-    instanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || true)
-    secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null || true)
-    AWSAccessKeyId=$(echo "${secCredJSON}" | grep 'AccessKeyId' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-    AWSSecretAccessKey=$(echo "${secCredJSON}" | grep 'SecretAccessKey' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-    STSToken=$(echo "${secCredJSON}" | grep 'Token' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
-
-    # if STSToken is null, regarding as not running on EC2.
-    if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ] && [ "${STSToken}" ]; then
+  # 2. try to get credentials from `~/.aws/config` and `~/.aws/credentials`
+  if [ -r ~/.aws/credentials ]; then
+    INI_aws_access_key_id='' INI_aws_secret_access_key=''
+    eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
+    AWSAccessKeyId="${INI_aws_access_key_id}" AWSSecretAccessKey="${INI_aws_secret_access_key}"
+    # If "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally
+    if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ]; then
       return 0
     fi
+  fi
 
-    # PrintErrLog and EXIT abnormally immediately
-    PrintErrLog E "$(cat <<'ERROR'
+  # 3. try to get credentials from AWS meta-data Instance Profile
+  instanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || true)
+  secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null || true)
+  AWSAccessKeyId=$(echo "${secCredJSON}" | grep 'AccessKeyId' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+  AWSSecretAccessKey=$(echo "${secCredJSON}" | grep 'SecretAccessKey' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+  STSToken=$(echo "${secCredJSON}" | grep 'Token' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
+
+  # if STSToken is null, regarding as not running on EC2.
+  if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ] && [ "${STSToken}" ]; then
+    return 0
+  fi
+
+  # PrintErrLog and EXIT abnormally immediately
+  PrintErrLog E "$(cat <<'ERROR'
 
 SetAWSAccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
@@ -699,674 +700,676 @@ Follow the steps below to register your credentials:
 
 ---
 ERROR
-    )"
+  )"
+  exit 1
+}
 
-    # If the secret key can not be acquired, EXIT abnormally immediately
-    exit 1
-  }
+##
+# Print Header for Request to AWS API
+# EnvironmentVariables:
+#   AWSAPIEndpoint required
+#   #HTTPMethod required # Unnecessary?
+#   HashedPayload required
+#   DateISO8601 required
+#   STSToken option
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string HTTP header
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintHTTPHeader() { (
+  printf '%s\n' "host:${AWSAPIEndpoint}"
+  #[ "${HTTPMethod}" != PUT ] || printf '%s\n' 'content-type:text/plain' # Unnecessary?
+  printf '%s\n' "x-amz-content-sha256:${HashedPayload}"
+  printf '%s\n' "x-amz-date:${DateISO8601}"
+  [ -z "${STSToken}" ] || printf '%s\n' "x-amz-security-token:${STSToken}"
+)}
 
-  ##
-  # Print Header for Request to AWS API
-  # EnvironmentVariables:
-  #   AWSAPIEndpoint required
-  #   #HTTPMethod required # Unnecessary?
-  #   HashedPayload required
-  #   DateISO8601 required
-  #   STSToken option
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   HTTP header
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintHTTPHeader() { (
-    printf '%s\n' "host:${AWSAPIEndpoint}"
-    #[ "${HTTPMethod}" != PUT ] || printf '%s\n' 'content-type:text/plain' # Unnecessary?
-    printf '%s\n' "x-amz-content-sha256:${HashedPayload}"
-    printf '%s\n' "x-amz-date:${DateISO8601}"
-    [ -z "${STSToken}" ] || printf '%s\n' "x-amz-security-token:${STSToken}"
-  )}
+##
+# Print CanonicalHeader of AWS Signature Version 4
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+# EnvironmentVariables:
+#   depends on PrintHTTPHeader
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string sorted HTTP header
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintCanonicalHeader() { (
+  PrintHTTPHeader | sort
+)}
 
-  ##
-  # Print CanonicalHeader of AWS Signature Version 4
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-  # EnvironmentVariables:
-  #   depends on PrintHTTPHeader
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   sorted HTTP header
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintCanonicalHeader() { (
-    PrintHTTPHeader | sort
-  )}
+##
+# Print CanonicalRequest of AWS Signature Version 4
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+# EnvironmentVariables:
+#   depends on PrintCanonicalHeader
+#   HTTPMethod required
+#   RequestPath required
+#   CanonicalQueryString required
+#   HashedPayload required
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string HTTP request
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintCanonicalRequest() { (
+  printf '%s\n' "${HTTPMethod}"                                                         # GET OR PUT
+  printf '%s\n' "${RequestPath}"                                                        # /your-backet OR /your-backet/path/to/object
+  printf '%s\n' "${CanonicalQueryString}"                                               # list-type=2&prefix=%2Fpath%2Fto%2Ffile
+  printf '%s\n' "$(PrintCanonicalHeader)"                                               # HTTP header host:s3.amazonaws.com\nx-amz-content-sha256:e3b0...b855\n ...
+  printf '%s\n' ''                                                                      # this blank line is required
+  printf '%s\n' "$(PrintCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')" # host;x-amz-content-sha256;x-amz-date; ...
+  printf '%s\n' "${HashedPayload}"                                                      # e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+)}
 
-  ##
-  # Print CanonicalRequest of AWS Signature Version 4
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-  # EnvironmentVariables:
-  #   depends on PrintCanonicalHeader
-  #   HTTPMethod required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  #   HashedPayload required
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   HTTP request
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintCanonicalRequest() { (
-    printf '%s\n' "${HTTPMethod}"                # GET / PUT
-    printf '%s\n' "${RequestPath}"               # /your-backet
-    printf '%s\n' "${CanonicalQueryString}"      # list-type=2&prefix=%2Fpath%2Fto%2Ffile
-    printf '%s\n' "$(PrintCanonicalHeader)" # 
-    printf '%s\n' ''                             # blank lines are required
-    printf '%s\n' "$(PrintCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//')"
-    printf '%s\n' "${HashedPayload}"
-  )}
+##
+# Print StringToSign of AWS Signature Version 4
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+# EnvironmentVariables:
+#   depends on PrintAWSRegion
+#   depends on ConvertSHA256Hash
+#   depends on PrintCanonicalRequest
+#   DateISO8601 required
+#   DateYMD required
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string StringToSign
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintStringtoSign() { (
+  printf '%s\n' 'AWS4-HMAC-SHA256'
+  printf '%s\n' "${DateISO8601}"
+  printf '%s\n' "${DateYMD}/$(PrintAWSRegion)/s3/aws4_request"
+  printf '%s\n' "$(ConvertSHA256Hash "$(PrintCanonicalRequest)")"
+)}
 
-  ##
-  # Print StringToSign of AWS Signature Version 4
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-  # EnvironmentVariables:
-  #   depends on PrintAWSRegion
-  #   depends on ConvertSHA256Hash
-  #   depends on PrintCanonicalRequest
-  #   DateISO8601 required
-  #   DateYMD required
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   StringToSign
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintStringtoSign() { (
-    printf '%s\n' 'AWS4-HMAC-SHA256'
-    printf '%s\n' "${DateISO8601}"
-    printf '%s\n' "${DateYMD}/$(PrintAWSRegion)/s3/aws4_request"
-    printf '%s\n' "$(ConvertSHA256Hash "$(PrintCanonicalRequest)")"
-  )}
-
-  ##
-  # Print Signature of AWS Signature Version 4
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-  # EnvironmentVariables:
-  #   depends on ConvertHMAC
-  #   depends on ConvertHex
-  #   depends on PrintAWSRegion
-  #   depends on PrintStringtoSign
-  #   AWSSecretAccessKey required
-  #   DateYMD required
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   Signature
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintSignature() { (
+##
+# Print Signature of AWS Signature Version 4
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+# EnvironmentVariables:
+#   depends on ConvertHMAC
+#   depends on ConvertHex
+#   depends on PrintAWSRegion
+#   depends on PrintStringtoSign
+#   AWSSecretAccessKey required
+#   DateYMD required
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string Signature
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintSignature() { (
+  ConvertHMAC "$(
     ConvertHMAC "$(
       ConvertHMAC "$(
         ConvertHMAC "$(
           ConvertHMAC "$(
-            ConvertHMAC "$(
-              ConvertHex "AWS4${AWSSecretAccessKey}"
-            )" "${DateYMD}"
-          )" "$(PrintAWSRegion)"
-        )" 's3'
-      )" 'aws4_request'
-    )" "$(PrintStringtoSign)"
-  )}
+            ConvertHex "AWS4${AWSSecretAccessKey}"
+          )" "${DateYMD}"
+        )" "$(PrintAWSRegion)"
+      )" 's3'
+    )" 'aws4_request'
+  )" "$(PrintStringtoSign)"
+)}
 
-  ##
-  # Print Authorization of AWS Signature Version 4
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-  # EnvironmentVariables:
-  #   depends on PrintAWSRegion
-  #   depends on PrintCanonicalHeader
-  #   depends on PrintSignature
-  #   AWSAccessKeyId required
-  #   DateYMD required
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   Authorization
-  # Stderr:
-  #   no
-  # Return:
-  #   0 always
-  ##
-  PrintAuthorization() { (
-    printf '%s' 'AWS4-HMAC-SHA256'
-    printf '%s' " Credential=${AWSAccessKeyId}/${DateYMD}/$(PrintAWSRegion)/s3/aws4_request,"
-    printf '%s' " SignedHeaders=$(PrintCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
-    printf '%s' " Signature=$(PrintSignature)"
-  )}
+##
+# Print Authorization of AWS Signature Version 4
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+# EnvironmentVariables:
+#   depends on PrintAWSRegion
+#   depends on PrintCanonicalHeader
+#   depends on PrintSignature
+#   AWSAccessKeyId required
+#   DateYMD required
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string Authorization
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+PrintAuthorization() { (
+  printf '%s' 'AWS4-HMAC-SHA256'
+  printf '%s' " Credential=${AWSAccessKeyId}/${DateYMD}/$(PrintAWSRegion)/s3/aws4_request,"
+  printf '%s' " SignedHeaders=$(PrintCanonicalHeader | sed 's/:.*/;/g' | tr -d '\n' | sed 's/;$//'),"
+  printf '%s' " Signature=$(PrintSignature)"
+)}
 
-  ##
-  # Call S3 API GET
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectGET.html
-  # EnvironmentVariables:
-  #   depends on PrintCanonicalHeader
-  #   depends on PrintAuthorization
-  #   HTTPMethod required
-  #   AWSAPIEndpoint required
-  #   RequestPath required
-  #   CanonicalQueryString required
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   Signature
-  # Stderr:
-  #   no
-  # Return:
-  #   0 success
-  #   1 failure
-  ##
-  CallAPIS3GET() { (
-    curl -ksS -X "${HTTPMethod}" \
-      -H "$(PrintCanonicalHeader)" \
-      -H "Authorization: $(PrintAuthorization)" \
-      "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")"
-  )}
+##
+# Call S3 API GET
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectGET.html
+# EnvironmentVariables:
+#   depends on PrintCanonicalHeader
+#   depends on PrintAuthorization
+#   HTTPMethod required
+#   AWSAPIEndpoint required
+#   RequestPath required
+#   CanonicalQueryString required
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string HTTP response from API
+# Stderr:
+#   no
+# Return:
+#   0 success
+#   1 failure
+##
+CallAPIS3GET() { (
+  curl -ksS -X "${HTTPMethod}" \
+    -H "$(PrintCanonicalHeader)" \
+    -H "Authorization: $(PrintAuthorization)" \
+    "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")"
+)}
 
-  ##
-  # Call S3 API PUT
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectPUT.html
-  # EnvironmentVariables:
-  #   depends on PrintHTTPHeader
-  #   depends on PrintAuthorization
-  #   HTTPMethod required
-  #   SourcePath required
-  #   AWSAPIEndpoint required
-  #   RequestPath required
-  #   CanonicalQueryString option
-  # Arguments:
-  #   no
-  # Stdin:
-  #   no
-  # Stdout:
-  #   Signature
-  # Stderr:
-  #   no
-  # Return:
-  #   0 success
-  #   1 failure
-  ##
-  CallAPIS3PUT() { (
-    curl -ksS -X "${HTTPMethod}" \
-      -H "$(PrintHTTPHeader)" \
-      -H "Authorization: $(PrintAuthorization)" \
-      -T "${SourcePath}" \
-      "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
-  )}
+##
+# Call S3 API PUT
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectPUT.html
+# EnvironmentVariables:
+#   depends on PrintHTTPHeader
+#   depends on PrintAuthorization
+#   HTTPMethod required
+#   SourcePath required
+#   AWSAPIEndpoint required
+#   RequestPath required
+#   CanonicalQueryString option
+# Arguments:
+#   no
+# Stdin:
+#   no
+# Stdout:
+#   string HTTP response from API
+# Stderr:
+#   no
+# Return:
+#   0 success
+#   1 failure
+##
+CallAPIS3PUT() { (
+  curl -ksS -X "${HTTPMethod}" \
+    -H "$(PrintHTTPHeader)" \
+    -H "Authorization: $(PrintAuthorization)" \
+    -T "${SourcePath}" \
+    "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
+)}
 
-  ##
-  # Print S3 List Buckets
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
-  # EnvironmentVariables:
-  #   depends on ConvertSHA256Hash
-  #   depends on CallAPIS3GET
-  # Arguments:
-  #   "/" or ""
-  # Stdin:
-  #   no
-  # Stdout:
-  #   List of Buckets
-  # Stderr:
-  #   no
-  # Return:
-  #   0 success to list
-  #   1 failure to list
-  ##
-  PrintS3ListBuckets() { (
-    # declare vars for methods
-    HTTPMethod='GET'
-    HashedPayload="$(ConvertSHA256Hash '')"
-    RequestPath='/'
+##
+# Print S3 List Buckets
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
+# EnvironmentVariables:
+#   depends on ConvertSHA256Hash
+#   depends on CallAPIS3GET
+# Arguments:
+#   "/" or ""
+# Stdin:
+#   no
+# Stdout:
+#   string list of buckets
+# Stderr:
+#   no
+# Return:
+#   0 success to list
+#   1 failure to list
+##
+PrintS3ListBuckets() { (
+  # declare vars for methods
+  HTTPMethod='GET'
+  HashedPayload="$(ConvertSHA256Hash '')"
+  RequestPath='/'
+  CanonicalQueryString=''
+  response=$(CallAPIS3GET)
+
+  # if err != nil
+  if ContainRegex '</Error>' "${response}"; then
+    echo "${response}" >/dev/stderr
+    return 1
+  fi
+
+  # return 0
+  echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
+)}
+
+##
+# Print S3 List Object
+#   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
+# EnvironmentVariables:
+#   depends on CallAPIS3GET
+#   MaxKeys option
+#   ContinuationToken option
+#   Prefix option
+# Arguments:
+#   $1 S3 Object Path
+# Stdin:
+#   no
+# Stdout:
+#   string list of objects
+# Stderr:
+#   no
+# Return:
+#   0 success to list
+#   1 failure to list
+##
+PrintS3ListObjects() { (
+  # declare vars for methods
+  s3Path="$(PrintSchemeSlashSlashRemoved "$1")"
+
+  # declare vars for methods
+  HTTPMethod='GET'
+  HashedPayload="$(ConvertSHA256Hash '')"
+  RequestPath="/$(PrintExtractedHTTPHost "${s3Path}")"
+  Prefix=$(URIEncode "$(PrintExtractedHTTPPath "$1")")
+  { [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; } && MaxKeys=1000
+
+  # CanonicalQueryString
+  CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
+  CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
+  CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
+
+  # run
+  response=$(CallAPIS3GET)
+
+  # if error
+  if ContainRegex '</Error>' "${response}"; then
+    # if exist PermanentRedirect, declare new AWSAPIEndpoint and run PrintS3ListObjects
+    if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
+      AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
+      PrintS3ListObjects "$@"
+    fi
+
+    # print error to stderr
+    echo "${response}" >/dev/stderr
+    return 1
+  fi
+
+  # display edited response
+  if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then
+    PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
+      | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
+  else
+    echo "${response}" > /dev/stderr
+    return 1
+  fi
+
+  # if exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
+  if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
+    ContinuationToken=$(URIEncode "$(PrintExtractedXMLValue 'NextContinuationToken' "${response}")")
+    PrintS3ListObjects "$@"
+  fi
+  
+)}
+
+##
+# Print S3 S3 Get Object contents
+# EnvironmentVariables:
+#   depends on CallAPIS3GET
+# Arguments:
+#   $1 S3 Object Path
+# Stdin:
+#   no
+# Stdout:
+#   string contents of object
+# Stderr:
+#   no
+# Return:
+#   0 success to get
+#   1 failure to get
+##
+PrintS3GetObject() { (
+  # vars common
+  s3Path="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "PrintS3GetObject(): requires \"s3Path\" as \$1")"}")"
+
+  # vars for methods
+  HTTPMethod='GET'
+  HashedPayload="$(ConvertSHA256Hash '')"
+  RequestPath="/$(URIEncodeWithoutSlash "${s3Path}")"
+  CanonicalQueryString=''
+
+  # run
+  tmpFile=$(mktemp)
+  CallAPIS3GET > "${tmpFile}"
+  response=$(cat "${tmpFile}")
+
+  # error or not
+  if ContainRegex '</Error>' "${response}"; then
+    if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
+      AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
+      PrintS3GetObject "$@"
+    fi
+
+    # print error to stderr
+    echo "${response}" >/dev/stderr
+    return 1
+  fi
+
+  # If empty file, Remove.
+  [ ! -s "${tmpFile}" ] || cat "${tmpFile}"
+)}
+
+##
+# laws s3 ls
+# EnvironmentVariables:
+#   depends on PrintS3ListBuckets
+#   depends on PrintS3ListObjects
+# Arguments:
+#   $@ S3 Objects Paths
+# Stdin:
+#   no
+# Stdout:
+#   string list of objects
+# Stderr:
+#   no
+# Return:
+#   0 success to list
+#   1 failure to list
+##
+LawsS3Ls() { (
+  # if args contain "-h" or "--help" or "help" or ..., display README
+  if ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
+
+  # if no args, list buckets, else list objects by passed bucket
+  if [ "$#" = 0 ] || [ "$1" = / ]; then
+    PrintS3ListBuckets
+  else 
+    for arg in "$@"; do
+      PrintS3ListObjects "${arg}"
+    done
+  fi
+)}
+
+##
+# laws s3 cat
+# EnvironmentVariables:
+#   depends on PrintS3GetObject
+# Arguments:
+#   $@ S3 Objects Paths
+# Stdin:
+#   no
+# Stdout:
+#   contents of objects
+# Stderr:
+#   no
+# Return:
+#   0 success to list
+#   1 failure to list
+##
+LawsS3Cat() { (
+  # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
+  if [ "$#" = 0 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
+
+  # loop by the number of arguments.
+  for arg in "$@"; do
+    PrintS3GetObject "${arg}"
+  done
+)}
+
+##
+# laws s3 cp
+# EnvironmentVariables:
+#   depends on LawsS3Ls
+#   depends on PrintS3ListBuckets
+#   depends on PrintS3ListObjects
+#   depends on PrintS3GetObject
+#   depends on CallAPIS3PUT
+# Arguments:
+#   $1 source path
+#   $2 destination path
+# Stdin:
+#   no
+# Stdout:
+#   no
+# Stderr:
+#   error log
+# Return:
+#   0 success to update or download
+#   1 failure to update or download
+##
+LawsS3Cp() {
+  # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
+  if [ "$#" != 2 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
+
+  # vars common
+  SourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}")"
+  destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}")"
+
+  #if [ "${SourcePath}" = - ]; then
+  #  SourcePath='/dev/stdin'
+  #fi
+
+  if [ "${destinationPath}" = - ]; then
+    destinationPath='/dev/stdout'
+  fi
+
+  # vars about bucket
+  responseListBucket=$(PrintS3ListBuckets)
+  destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
+
+  # vars about path
+  responseListPath=$(LawsS3Ls "${SourcePath}" "${destinationPath}" 2>/dev/null || true)
+  sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]${SourcePath}$" || true)
+
+  # copy local to s3 (PUT)
+  if [ -e "${SourcePath}" ] && [ "${destinationBucketExist}" ]; then
+
+    # vars for cURL
+    HTTPMethod='PUT'
+    HashedPayload="$(openssl dgst -sha256 "${SourcePath}" | sed 's/^.*[[:blank:]]//')"
+    RequestPath="/$(URIEncodeWithoutSlash "${destinationPath}")"
     CanonicalQueryString=''
-    response=$(CallAPIS3GET)
 
-    # if err != nil
+    # Call API
+    response=$(CallAPIS3PUT)
+
     if ContainRegex '</Error>' "${response}"; then
-      echo "${response}" >/dev/stderr
-      return 1
-    fi
-
-    # exit normally
-    echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
-  ) }
-
-  ##
-  # Print S3 List Object
-  #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
-  # EnvironmentVariables:
-  #   depends on CallAPIS3GET
-  #   MaxKeys option
-  #   ContinuationToken option
-  #   Prefix option
-  # Arguments:
-  #   $1 S3 Object Path
-  # Stdin:
-  #   no
-  # Stdout:
-  #   List of Objects
-  # Stderr:
-  #   no
-  # Return:
-  #   0 success to list
-  #   1 failure to list
-  ##
-  PrintS3ListObjects() { (
-    # declare vars for methods
-    s3Path="$(PrintSchemeSlashSlashRemoved "$1")"
-
-    # declare vars for methods
-    HTTPMethod='GET'
-    HashedPayload="$(ConvertSHA256Hash '')"
-    RequestPath="/$(PrintExtractedHTTPHost "${s3Path}")"
-    Prefix=$(EncodeUri "$(PrintExtractedHTTPPath "$1")")
-    { [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; } && MaxKeys=1000
-
-    # CanonicalQueryString
-    CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
-    CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
-    CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
-
-    # run
-    response=$(CallAPIS3GET)
-
-    # if error
-    if ContainRegex '</Error>' "${response}"; then
-      # if exist PermanentRedirect, declare new AWSAPIEndpoint and run PrintS3ListObjects
-      if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
-        AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
-        PrintS3ListObjects "$@"
-      fi
-
-      # print error to stderr
-      echo "${response}" >/dev/stderr
-      return 1
-    fi
-
-    # display edited response
-    if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then
-      PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
-        | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
-    else
       echo "${response}" > /dev/stderr
       return 1
     fi
 
-    # if exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
-    if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
-      ContinuationToken=$(EncodeUri "$(PrintExtractedXMLValue 'NextContinuationToken' "${response}")")
-      PrintS3ListObjects "$@"
-    fi
-    
-  ) }
+    #PrintErrLog D "uploaded ${SourcePath} to ${destinationPath}"
+    return 0
 
-  ##
-  # Print S3 S3 Get Object contents
-  # EnvironmentVariables:
-  #   depends on CallAPIS3GET
-  # Arguments:
-  #   $1 S3 Object Path
-  # Stdin:
-  #   no
-  # Stdout:
-  #   Object contents
-  # Stderr:
-  #   no
-  # Return:
-  #   0 success to get
-  #   1 failure to get
-  ##
-  PrintS3GetObject() { (
-    # vars common
-    s3Path="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "PrintS3GetObject(): requires \"s3Path\" as \$1")"}")"
+  # copy s3 to s3 (GET and PUT)
+  elif [ "${sourcePathExist}" ] && [ "${destinationBucketExist}" ]; then
+    # GET
+    tmpFileForS3ToS3=$(mktemp)
+    PrintS3GetObject "${SourcePath}" > "${tmpFileForS3ToS3}"
 
-    # vars for methods
-    HTTPMethod='GET'
-    HashedPayload="$(ConvertSHA256Hash '')"
-    RequestPath="/$(EncodeUriWithoutSlash "${s3Path}")"
-    CanonicalQueryString=''
+    # PUT
+    response=$(LawsS3Cp "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
 
-    # run
-    tmpFile=$(mktemp)
-    CallAPIS3GET > "${tmpFile}"
-    response=$(cat "${tmpFile}")
-
-    # error or not
+    # If the tmp file can be uploaded, output the appropriate log.
     if ContainRegex '</Error>' "${response}"; then
-      if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
-        AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
-        PrintS3GetObject "$@"
-      fi
-
-      # print error to stderr
-      echo "${response}" >/dev/stderr
+      echo "${response}" > /dev/stderr
       return 1
     fi
 
-    # If empty file, Remove.
-    [ ! -s "${tmpFile}" ] || cat "${tmpFile}"
-  )}
+    #PrintErrLog D "uploaded ${SourcePath} to ${destinationPath}"
+    return 0
 
-  ##
-  # laws s3 ls
-  # EnvironmentVariables:
-  #   depends on PrintS3ListBuckets
-  #   depends on PrintS3ListObjects
-  # Arguments:
-  #   $@ S3 Objects Paths
-  # Stdin:
-  #   no
-  # Stdout:
-  #   List objects
-  # Stderr:
-  #   no
-  # Return:
-  #   0 success to list
-  #   1 failure to list
-  ##
-  LawsS3Ls() { (
-    # if args contain "-h" or "--help" or "help" or ..., display README
-    if ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
+  # copy s3 to local (GET)
+  elif [ "${sourcePathExist}" ]; then
 
-    # if no args, list buckets, else list objects by passed bucket
-    if [ "$#" = 0 ] || [ "$1" = / ]; then
-      PrintS3ListBuckets
-    else 
-      for arg in "$@"; do
-        PrintS3ListObjects "${arg}"
-      done
-    fi
-  )}
-
-  ##
-  # laws s3 cat
-  # EnvironmentVariables:
-  #   depends on PrintS3GetObject
-  # Arguments:
-  #   $@ S3 Objects Paths
-  # Stdin:
-  #   no
-  # Stdout:
-  #   contents of objects
-  # Stderr:
-  #   no
-  # Return:
-  #   0 success to list
-  #   1 failure to list
-  ##
-  LawsS3Cat() { (
-    # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" = 0 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
-
-    # loop by the number of arguments.
-    for arg in "$@"; do
-      PrintS3GetObject "${arg}"
-    done
-  )}
-
-  ##
-  # laws s3 cp
-  # EnvironmentVariables:
-  #   depends on LawsS3Ls
-  #   depends on PrintS3ListBuckets
-  #   depends on PrintS3ListObjects
-  #   depends on PrintS3GetObject
-  #   depends on CallAPIS3PUT
-  # Arguments:
-  #   $1 source path
-  #   $2 destination path
-  # Stdin:
-  #   no
-  # Stdout:
-  #   no
-  # Stderr:
-  #   log
-  # Return:
-  #   0 success to update or download
-  #   1 failure to update or download
-  ##
-  LawsS3Cp() {
-    # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-    if [ "$#" != 2 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
-
-    # vars common
-    SourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}")"
-    destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}")"
-
-    #if [ "${SourcePath}" = - ]; then
-    #  SourcePath='/dev/stdin'
-    #fi
-
-    if [ "${destinationPath}" = - ]; then
-      destinationPath='/dev/stdout'
-    fi
-
-    # vars about bucket
-    responseListBucket=$(PrintS3ListBuckets)
-    destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
-
-    # vars about path
-    responseListPath=$(LawsS3Ls "${SourcePath}" "${destinationPath}" 2>/dev/null || true)
-    sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]${SourcePath}$" || true)
-
-    # copy local to s3 (PUT)
-    if [ -e "${SourcePath}" ] && [ "${destinationBucketExist}" ]; then
-
-      # vars for cURL
-      HTTPMethod='PUT'
-      HashedPayload="$(openssl dgst -sha256 "${SourcePath}" | sed 's/^.*[[:blank:]]//')"
-      RequestPath="/$(EncodeUriWithoutSlash "${destinationPath}")"
-      CanonicalQueryString=''
-
-      # Call API
-      response=$(CallAPIS3PUT)
-
-      if ContainRegex '</Error>' "${response}"; then
-        echo "${response}" > /dev/stderr
-        return 1
-      fi
-
-      #PrintErrLog D "uploaded ${SourcePath} to ${destinationPath}"
+    if [ -d "${destinationPath}" ]; then
+      PrintS3GetObject "${SourcePath}" > "${destinationPath}/$(basename -- "${SourcePath}")"
+      #PrintErrLog D "downloaded ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
       return 0
-
-    # copy s3 to s3 (GET and PUT)
-    elif [ "${sourcePathExist}" ] && [ "${destinationBucketExist}" ]; then
-      # GET
-      tmpFileForS3ToS3=$(mktemp)
-      PrintS3GetObject "${SourcePath}" > "${tmpFileForS3ToS3}"
-
-      # PUT
-      response=$(LawsS3Cp "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
-
-      # If the tmp file can be uploaded, output the appropriate log.
-      if ContainRegex '</Error>' "${response}"; then
-        echo "${response}" > /dev/stderr
-        return 1
-      fi
-
-      #PrintErrLog D "uploaded ${SourcePath} to ${destinationPath}"
+    elif [ ! -d "${destinationPath}" ] && [ -d "$(dirname "${destinationPath}")" ]; then
+      PrintS3GetObject "${SourcePath}" > "${destinationPath}"
+      #PrintErrLog D "downloaded ${SourcePath} to ${destinationPath}"
       return 0
-
-    # copy s3 to local (GET)
-    elif [ "${sourcePathExist}" ]; then
-
-      if [ -d "${destinationPath}" ]; then
-        PrintS3GetObject "${SourcePath}" > "${destinationPath}/$(basename -- "${SourcePath}")"
-        #PrintErrLog D "downloaded ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
-        return 0
-      elif [ ! -d "${destinationPath}" ] && [ -d "$(dirname "${destinationPath}")" ]; then
-        PrintS3GetObject "${SourcePath}" > "${destinationPath}"
-        #PrintErrLog D "downloaded ${SourcePath} to ${destinationPath}"
-        return 0
-      fi
-
-      PrintErrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${SourcePath}\"")"
-      return 1
     fi
 
-    PrintErrLog W "\"${SourcePath}\" and \"${destinationPath}\" not found or local files."
+    PrintErrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${SourcePath}\"")"
     return 1
-  }
+  fi
 
-  ##
-  # laws s3 ...
-  # EnvironmentVariables:
-  #   depends on LawsS3Ls
-  #   depends on LawsS3Cat
-  #   depends on LawsS3Cp
-  # Arguments:
-  #   $1 sub command
-  #   $2~ sub command's arguments
-  # Stdin:
-  #   no
-  # Stdout:
-  #   output
-  # Stderr:
-  #   log
-  # Return:
-  #   0 success
-  #   1 failure
-  ##
-  LawsS3() {
-    # check sub commands
-    case "$1" in
-       ls) shift; LawsS3Ls "$@" ;;
-      cat) shift; LawsS3Cat "$@" ;;
-       cp) shift; LawsS3Cp "$@" ;;
-        *) PrintErrReadMe; exit 0 ;;
-    esac
-  }
+  PrintErrLog E "\"${SourcePath}\" and \"${destinationPath}\" not found or local files."
+  return 1
+}
 
-  ##
-  # laws ...
-  # EnvironmentVariables:
-  #   depends on LawsS3
-  #   depends on SetAWSAccessKey
-  #   PROGRAM_NAME required
-  #   VERSION required
-  # Arguments:
-  #   $1 sub command
-  #   $2 sub command
-  #   $3~ sub command's arguments
-  # Stdin:
-  #   no
-  # Stdout:
-  #   output
-  # Stderr:
-  #   log
-  # Return:
-  #   0 success
-  #   1 failure
-  ##
-  main() {
-    # check dependency
-    CheckDependency '[' cat curl date grep od openssl printf sed tr
+##
+# laws s3
+# EnvironmentVariables:
+#   depends on LawsS3Ls
+#   depends on LawsS3Cat
+#   depends on LawsS3Cp
+# Arguments:
+#   $1 sub command
+#   $2~ sub command's arguments
+# Stdin:
+#   no
+# Stdout:
+#   output
+# Stderr:
+#   log
+# Return:
+#   0 success
+#   1 failure
+##
+LawsS3() {
+  # check sub commands
+  case "$1" in
+     ls) shift; LawsS3Ls "$@" ;;
+    cat) shift; LawsS3Cat "$@" ;;
+     cp) shift; LawsS3Cp "$@" ;;
+      *) PrintErrReadMe; exit 0 ;;
+  esac
+}
 
-    # display version
-    if ContainRegex '-V|-*version' "$*"; then
-      echo "${PROGRAM_NAME} ${VERSION}"
-      return 0
-    fi
+##
+# laws
+# EnvironmentVariables:
+#   depends on LawsS3
+#   depends on SetAWSAccessKey
+#   PROGRAM_NAME required
+#   VERSION required
+# Arguments:
+#   $1 sub command
+#   $2 sub command
+#   $3~ sub command's arguments
+# Stdin:
+#   no
+# Stdout:
+#   output
+# Stderr:
+#   log
+# Return:
+#   0 success
+#   1 failure
+##
+main() {
+  # check dependency
+  CheckDependency '[' cat curl date grep od openssl printf sed tr
 
-    # declare vars for methods
-    DateYMD=$(date +'%Y%m%d')
-    DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
-    AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
-    SetAWSAccessKey
+  # display version
+  if ContainRegex '-V|-*version' "$*"; then
+    echo "${PROGRAM_NAME} ${VERSION}"
+    return 0
+  fi
 
-    # check sub commands
-    case "$1" in
-      s3) shift && LawsS3 "$@" ;;
-       *) PrintErrReadMe; exit 0 ;;
-    esac
-  }
+  # declare vars for methods
+  DateYMD=$(date +'%Y%m%d')
+  DateISO8601=$(TZ=GMT date +'%Y%m%dT%H%M%SZ')
+  AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
+  SetAWSAccessKey
 
-  ##
-  # Execute the main function.
-  # It is executed first in this script.
-  #
-  # $@ ... Pass all the arguments of the laws command.
-  #
-  # like:
-  #   main s3 ls s3://mybucket/path/tp/file
-  ##
-  main "$@"
+  # check sub commands
+  case "$1" in
+    s3) shift && LawsS3 "$@" ;;
+     *) PrintErrReadMe; exit 0 ;;
+  esac
+}
 
+##
+# Execute the main function.
+# It is executed first in this script.
+#
+# $@ ... Pass all the arguments of the laws command.
+#
+# like:
+#   main s3 ls s3://mybucket/path/tp/file
+##
+main "$@"
+
+# -- Non Interactive ----------------
 else
+# -- Interactive ----------------
 
-  ##
-  # Interactive: laws as completion
-  # ref: https://blog.cybozu.io/entry/2016/09/26/080000
-  #
-  # The following functions are for shell-completion.
-  # When executing as a laws command,
-  # the following functions are not defined nor executed.
-  #
-  # shellcheck disable=SC2016,SC2034,SC2039
-  ##
-  _laws() {
-    local cur prev cword
-    _get_comp_words_by_ref -n : cur prev cword
-    if [ "${cword}" -eq 1 ]; then
-      eval 'COMPREPLY=( $(compgen -W "s3" -- "${cur}") )'
-    elif [ "${cword}" -eq 2 ]; then
-      if [ "${prev}" = s3 ]; then
-        eval 'COMPREPLY=( $(compgen -W "ls cat cp" -- "${cur}") )'
-      fi
-    elif [ "${cword}" -eq 3 ] && { [ "${prev}" = ls ] || [ "${prev}" = cat ]; }; then
-      if [ -z "${__laws_s3_ls_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_previous_execution_time)) -gt 30 ]; then
-        __laws_s3_ls_completion_previous_execution_time=$(date +%s)
-        __laws_s3_ls_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
-      fi
-      eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_previous_execution}" -- "${cur}") )'
-    else
-      # Cache the execution result of the command for 30 seconds.
-      if [ -z "${__laws_s3_cp_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_cp_completion_previous_execution_time)) -gt 30 ]; then
-        __laws_s3_cp_completion_previous_execution_time=$(date +%s)
-        __laws_s3_cp_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
-      fi
-      eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_previous_execution} $(ls -aCdF "${cur}"* 2>/dev/null)" -- "${cur}") )'
+
+##
+# Interactive: laws as completion
+# ref: https://blog.cybozu.io/entry/2016/09/26/080000
+#
+# The following functions are for shell-completion.
+# When executing as a laws command,
+# the following functions are not defined nor executed.
+#
+# shellcheck disable=SC2016,SC2034,SC2039
+##
+_laws() {
+  local cur prev cword
+  _get_comp_words_by_ref -n : cur prev cword
+  if [ "${cword}" -eq 1 ]; then
+    eval 'COMPREPLY=( $(compgen -W "s3" -- "${cur}") )'
+  elif [ "${cword}" -eq 2 ]; then
+    if [ "${prev}" = s3 ]; then
+      eval 'COMPREPLY=( $(compgen -W "ls cat cp" -- "${cur}") )'
     fi
-  }
-  # shellcheck disable=SC2039
-  [ -z "$(command -v complete)" ] || complete -F _laws laws
+  elif [ "${cword}" -eq 3 ] && { [ "${prev}" = ls ] || [ "${prev}" = cat ]; }; then
+    if [ -z "${__laws_s3_ls_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_previous_execution_time)) -gt 30 ]; then
+      __laws_s3_ls_completion_previous_execution_time=$(date +%s)
+      __laws_s3_ls_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+    fi
+    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_previous_execution}" -- "${cur}") )'
+  else
+    # Cache the execution result of the command for 30 seconds.
+    if [ -z "${__laws_s3_cp_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_cp_completion_previous_execution_time)) -gt 30 ]; then
+      __laws_s3_cp_completion_previous_execution_time=$(date +%s)
+      __laws_s3_cp_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+    fi
+    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_previous_execution} $(ls -aCdF "${cur}"* 2>/dev/null)" -- "${cur}") )'
+  fi
+}
+# shellcheck disable=SC2039
+[ -z "$(command -v complete)" ] || complete -F _laws laws
 
+# -- Interactive ----------------
 fi
