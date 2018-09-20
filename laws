@@ -1007,34 +1007,37 @@ PrintS3ListObjects() { (
   # run
   response=$(CallAPIS3GET)
 
-  # if error
-  if ContainRegex '</Error>' "${response}"; then
-    # if exist PermanentRedirect, declare new AWSAPIEndpoint and run PrintS3ListObjects
-    if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
-      AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
-      PrintS3ListObjects "$@"
-    fi
+  # If exist PermanentRedirect, declare new AWSAPIEndpoint and run PrintS3ListObjects
+  if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
+    # change AWSAPIEndpoint
+    AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
+    PrintS3ListObjects "$@"
+    return 0
+  fi
 
-    # print error to stderr
-    echo "${response}" >/dev/stderr
-    return 1
+  # If nothing, print nothing
+  if ContainRegex '<KeyCount>0</KeyCount>' "${response}"; then
+    return 0
   fi
 
   # display edited response
   if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then
+    # output format
     PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
       | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
-  else
-    echo "${response}" > /dev/stderr
-    return 1
+
+    # If exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
+    if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
+      ContinuationToken=$(URIEncode "$(PrintExtractedXMLValue 'NextContinuationToken' "${response}")")
+      PrintS3ListObjects "$@"
+      return 0
+    fi
+
+    return 0
   fi
 
-  # if exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
-  if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
-    ContinuationToken=$(URIEncode "$(PrintExtractedXMLValue 'NextContinuationToken' "${response}")")
-    PrintS3ListObjects "$@"
-  fi
-  
+  echo "${response}" > /dev/stderr
+  return 1
 )}
 
 ##
