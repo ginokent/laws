@@ -518,7 +518,7 @@ URIEncodeWithoutSlash() { (
   fi
   LC_ALL=C
   # shellcheck disable=SC2059
-  printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
+  printf -- "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
     case "$LINE" in
       [/0-9A-Za-z._~-])
         printf '%s' "$LINE"
