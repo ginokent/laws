@@ -14,7 +14,7 @@ if ! { echo "$-" | grep -q i; }; then
 set -e
 
 # Global variables
-readonly VERSION='0.1.7'
+readonly VERSION='0.1.8'
 readonly PROGRAM_NAME="$(basename -- "$0")"
 
 # When EXIT, clean up temporary files.
@@ -24,6 +24,9 @@ trap '{
   fi
   if [ -f "${tmpFileForS3ToS3}" ]; then
     rm -f ${tmpFileForS3ToS3}
+  fi
+  if [ -f "${tmpFileForStdinToS3}" ]; then
+    rm -f ${tmpFileForStdinToS3}
   fi
 }' EXIT
 
@@ -1012,7 +1015,7 @@ PrintS3ListObjects() { (
     # change AWSAPIEndpoint
     AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
     PrintS3ListObjects "$@"
-    return 0
+    return $?
   fi
 
   # If nothing, print nothing
@@ -1030,7 +1033,7 @@ PrintS3ListObjects() { (
     if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
       ContinuationToken=$(URIEncode "$(PrintExtractedXMLValue 'NextContinuationToken' "${response}")")
       PrintS3ListObjects "$@"
-      return 0
+      return $?
     fi
 
     return 0
@@ -1076,6 +1079,7 @@ PrintS3GetObject() { (
     if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
       AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
       PrintS3GetObject "$@"
+      return $?
     fi
 
     # print error to stderr
@@ -1173,10 +1177,14 @@ LawsS3Cp() {
   SourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}")"
   destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}")"
 
-  #if [ "${SourcePath}" = - ]; then
-  #  SourcePath='/dev/stdin'
-  #fi
+  # stdin
+  if [ "${SourcePath}" = - ]; then
+    tmpFileForStdinToS3=$(mktemp)
+    cat /dev/stdin > "${tmpFileForStdinToS3}"
+    SourcePath="${tmpFileForStdinToS3}"
+  fi
 
+  # stdout
   if [ "${destinationPath}" = - ]; then
     destinationPath='/dev/stdout'
   fi
@@ -1200,13 +1208,13 @@ LawsS3Cp() {
 
     # Call API
     response=$(CallAPIS3PUT)
+    printf "%s" "${response}" > /dev/stderr
 
+    # if err != nil
     if ContainRegex '</Error>' "${response}"; then
-      echo "${response}" > /dev/stderr
       return 1
     fi
 
-    #PrintErrLog D "uploaded ${SourcePath} to ${destinationPath}"
     return 0
 
   # copy s3 to s3 (GET and PUT)
@@ -1216,28 +1224,28 @@ LawsS3Cp() {
     PrintS3GetObject "${SourcePath}" > "${tmpFileForS3ToS3}"
 
     # PUT
+    #PrintErrLog D "upload ${SourcePath} to ${destinationPath}"
     response=$(LawsS3Cp "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
+    printf "%s" "${response}" > /dev/stderr
 
     # If the tmp file can be uploaded, output the appropriate log.
     if ContainRegex '</Error>' "${response}"; then
-      echo "${response}" > /dev/stderr
       return 1
     fi
 
-    #PrintErrLog D "uploaded ${SourcePath} to ${destinationPath}"
     return 0
 
   # copy s3 to local (GET)
   elif [ "${sourcePathExist}" ]; then
 
     if [ -d "${destinationPath}" ]; then
+      #PrintErrLog D "download ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
       PrintS3GetObject "${SourcePath}" > "${destinationPath}/$(basename -- "${SourcePath}")"
-      #PrintErrLog D "downloaded ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
-      return 0
+      return $?
     elif [ ! -d "${destinationPath}" ] && [ -d "$(dirname "${destinationPath}")" ]; then
+      #PrintErrLog D "download ${SourcePath} to ${destinationPath}"
       PrintS3GetObject "${SourcePath}" > "${destinationPath}"
-      #PrintErrLog D "downloaded ${SourcePath} to ${destinationPath}"
-      return 0
+      return $?
     fi
 
     PrintErrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${SourcePath}\"")"
