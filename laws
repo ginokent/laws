@@ -518,7 +518,7 @@ URIEncodeWithoutSlash() { (
   fi
   LC_ALL=C
   # shellcheck disable=SC2059
-  printf "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
+  printf -- "$(echo "$1" | sed 's/\(.\)/\1\\n/g')" | while read -r LINE; do
     case "$LINE" in
       [/0-9A-Za-z._~-])
         printf '%s' "$LINE"
@@ -1365,7 +1365,7 @@ _laws() {
       __laws_s3_cp_completion_previous_execution_time=$(date +%s)
       __laws_s3_cp_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
     fi
-    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_previous_execution} $(ls -aCdF "${cur}"* 2>/dev/null)" -- "${cur}") )'
+    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_previous_execution} $(ls -aCdF "${cur}"* 2>/dev/null) -" -- "${cur}") )'
   fi
 }
 # shellcheck disable=SC2039
