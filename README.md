@@ -25,9 +25,9 @@ sudo curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws -o /usr/
 ## Usage:
 
 When executing this script,
-  - Please use it on EC2 which has IAM Role allowed access to Amazon S3,
-  - OR save `~/.aws/config` and `~/.aws/credentials`,
-  - OR set the following environment variables:
+- Please use it on EC2 which has IAM Role allowed access to Amazon S3,
+- OR save `~/.aws/config` and `~/.aws/credentials`,
+- OR set the following environment variables:
 
 ```
 export AWS_REGION=ap-northeast-1
@@ -83,14 +83,20 @@ OR
 This program relies heavily on "AWS Signature Version 4".  
 
 #### References:
-  - Signing AWS Requests with Signature Version 4 - Amazon Web Services  
-    https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html  
-  - Authenticating Requests: Using Query Parameters (AWS Signature Version 4)
-    https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-  - Signature Calculations for the Authorization Header:  
-    Transferring Payload in a Single Chunk (AWS Signature Version 4) - Amazon Simple Storage Service  
-    https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html  
-  - GET Bucket (List Objects) Version 2  
-    https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
+- Signing AWS Requests with Signature Version 4 - Amazon Web Services  
+  https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html  
+- Authenticating Requests: Using Query Parameters (AWS Signature Version 4)
+  https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+- Signature Calculations for the Authorization Header:  
+  Transferring Payload in a Single Chunk (AWS Signature Version 4) - Amazon Simple Storage Service  
+  https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html  
+- GET Bucket (List Objects) Version 2  
+  https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
+
+
+## TODO
+- Support DELETE Method
+- Support prefix like awscli
+
 
 ---
