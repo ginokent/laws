@@ -7,7 +7,7 @@ printf "\e[1;37m%s\e[0m\n" "$(LANG=C date) [INFO]  -- Remote Test --------------
 
 # local vars
 echo "LAWS_LOCAL_REPOSITORY  : ${LAWS_LOCAL_REPOSITORY:="${HOME}/djeeno/laws/"}"
-echo "LAWS_REMOTE_HOST       : ${LAWS_REMOTE_HOST:="52.193.197.82"}"
+echo "LAWS_REMOTE_HOST       : ${LAWS_REMOTE_HOST:="52.194.247.4"}"
 echo "LAWS_REMOTE_USER       : ${LAWS_REMOTE_USER:="ubuntu"}"
 echo "LAWS_REMOTE_REPOSITORY : ${LAWS_REMOTE_REPOSITORY:="/home/${LAWS_REMOTE_USER}/laws/"}"
 echo "LAWS_REMOTE_COMMAND    : ${LAWS_REMOTE_COMMAND:="cd ${LAWS_REMOTE_REPOSITORY} && make test"}"
