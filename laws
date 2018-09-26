@@ -570,6 +570,7 @@ PrintAWSRegion() { (
     eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
     if [ "${INI_region}" ]; then
       echo "${INI_region}"
+      return 0
     else
       PrintErrLog W "PrintAWSRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
     fi
