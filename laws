@@ -202,7 +202,7 @@ PrintErrLog() { (
   esac
 
   # output log message to stderr
-  printf '%s\n' "${logMessages}" | sed "s/^/$(PrintDateUTC) ${PROGRAM_NAME}[$$]: ${tag} /" >/dev/stderr
+  printf '%s\n' "${logMessages}" | awk '{print "'"$(PrintDateUTC) ${PROGRAM_NAME}[$$]: ${tag}"' "$0}' >/dev/stderr
 )}
 
 ##
