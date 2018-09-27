@@ -189,11 +189,11 @@ PrintDateUTC() { (
 ##
 PrintErrLog() { (
   # vars
-  level="${1:?"$(PrintDateUTC) [FATAL] PrintErrLog(): requires \"level\" as \$1"}"
+  logLevel="${1:?"$(PrintDateUTC) [FATAL] PrintErrLog(): requires \"logLevel\" as \$1"}"
   logMessages="${2:?"$(PrintDateUTC) [FATAL] PrintErrLog(): requires \"logMessages\" as \$2"}"
   
-  # check level
-  case "${level}" in
+  # check logLevel
+  case "${logLevel}" in
     f|F) tag='[FATAL]' ;;
     e|E) tag='[ERROR]' ;;
     w|W) tag='[WARN] ' ;;
