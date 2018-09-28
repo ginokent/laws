@@ -1228,8 +1228,10 @@ LawsS3Cp() {
   fi
 
   # vars about bucket
-  responseListBucket=$(PrintS3ListBuckets)
-  destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
+  #responseListBucket=$(PrintS3ListBuckets)
+  #destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
+  # 上がアカウント外のバケットの存在判定が考慮されていないため下に変更
+  destinationBucketExist=$(PrintS3ListObjects "$(PrintExtractedHTTPHost "$(PrintSchemeSlashSlashRemoved "${destinationPath}")")" 2> /dev/null || true)
 
   # vars about path
   responseListPath=$(LawsS3Ls "${SourcePath}" "${destinationPath}" 2>/dev/null || true)
