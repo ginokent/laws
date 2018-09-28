@@ -1393,7 +1393,7 @@ else
 #
 # shellcheck disable=SC2016,SC2034,SC2039
 ##
-__laws() {
+__complete_laws() {
   local cur prev cword
   _get_comp_words_by_ref -n : cur prev cword
   if [ "${cword}" -eq 1 ]; then
@@ -1418,7 +1418,7 @@ __laws() {
   fi
 }
 # shellcheck disable=SC2039
-[ -z "$(command -v complete)" ] || complete -F __laws laws
+[ -z "$(command -v complete)" ] || complete -F __complete_laws laws
 
 # -- Interactive ----------------
 fi
