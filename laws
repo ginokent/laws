@@ -1405,18 +1405,18 @@ __complete_laws() {
       eval 'COMPREPLY=( $(compgen -W "ls cat cp" -- "${cur}") )'
     fi
   elif [ "${cword}" -eq 3 ] && { [ "${prev}" = ls ] || [ "${prev}" = cat ]; }; then
-    if [ -z "${__laws_s3_ls_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_previous_execution_time)) -gt 30 ]; then
-      __laws_s3_ls_completion_previous_execution_time=$(date +%s)
-      __laws_s3_ls_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+    if [ -z "${__laws_s3_ls_completion_pre_exe_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_pre_exe_time)) -gt 30 ]; then
+      __laws_s3_ls_completion_pre_exe_time=$(date +%s)
+      __laws_s3_ls_completion_pre_exe="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
     fi
-    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_previous_execution}" -- "${cur}") )'
+    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_pre_exe}" -- "${cur}") )'
   else
     # Cache the execution result of the command for 30 seconds.
-    if [ -z "${__laws_s3_cp_completion_previous_execution_time}" ] || [ $(($(date +%s)-__laws_s3_cp_completion_previous_execution_time)) -gt 30 ]; then
-      __laws_s3_cp_completion_previous_execution_time=$(date +%s)
-      __laws_s3_cp_completion_previous_execution="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+    if [ -z "${__laws_s3_cp_completion_pre_exe_time}" ] || [ $(($(date +%s)-__laws_s3_cp_completion_pre_exe_time)) -gt 30 ]; then
+      __laws_s3_cp_completion_pre_exe_time=$(date +%s)
+      __laws_s3_cp_completion_pre_exe="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
     fi
-    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_previous_execution} $(ls -aCdF "${cur}"* 2>/dev/null) -" -- "${cur}") )'
+    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_pre_exe} $(ls -aCdF "${cur}"* 2>/dev/null) -" -- "${cur}") )'
   fi
 }
 # shellcheck disable=SC2039
