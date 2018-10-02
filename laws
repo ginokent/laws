@@ -1419,7 +1419,8 @@ __complete_laws() {
     eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_pre_exe} $(ls -aCdF "${cur}"* 2>/dev/null) -" -- "${cur}") )'
   fi
   # COMP_WORDBREAKS 対応
-  # https://stackoverflow.com/questions/2805412/bash-completion-for-maven-escapes-colon/12495727
+  # Bash Command-Line Tab Completion Colon Character - https://stackoverflow.com/questions/25362968/bash-command-line-tab-completion-colon-character
+  # Bash completion for Maven escapes colon - https://stackoverflow.com/questions/2805412/bash-completion-for-maven-escapes-colon/12495727
   __ltrim_colon_completions "$cur"
 }
 # shellcheck disable=SC2039
