@@ -1006,7 +1006,7 @@ PrintS3ListBuckets() { (
   fi
 
   # return 0
-  echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 \1|g;'
+  echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 s3://\1|g;'
 )}
 
 ##
@@ -1036,7 +1036,7 @@ PrintS3ListObjects() { (
   # declare vars for methods
   HTTPMethod='GET'
   HashedPayload="$(ConvertSHA256Hash '')"
-  RequestPath="/$(PrintExtractedHTTPHost "${s3Path}")"
+  RequestPath="/$(PrintExtractedHTTPHost "$(PrintSchemeSlashSlashRemoved "${s3Path}")")"
   Prefix=$(URIEncode "$(PrintExtractedHTTPPath "$1")")
   { [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; } && MaxKeys=1000
 
@@ -1065,7 +1065,7 @@ PrintS3ListObjects() { (
   if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then
     # output format
     PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
-      | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 '"$(PrintExtractedHTTPHost "$1")"'/\1|g'
+      | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 s3://'"$(PrintExtractedHTTPHost "$1")"'/\1|g'
 
     # If exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
     if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
@@ -1104,7 +1104,7 @@ PrintS3GetObject() { (
   # vars for methods
   HTTPMethod='GET'
   HashedPayload="$(ConvertSHA256Hash '')"
-  RequestPath="/$(URIEncodeWithoutSlash "${s3Path}")"
+  RequestPath="/$(URIEncodeWithoutSlash "$(PrintSchemeSlashSlashRemoved "${s3Path}")")"
   CanonicalQueryString=''
 
   # run
@@ -1155,7 +1155,7 @@ LawsS3Ls() { (
     PrintS3ListBuckets
   else 
     for arg in "$@"; do
-      PrintS3ListObjects "${arg}"
+      PrintS3ListObjects "$(PrintSchemeSlashSlashRemoved "${arg}")"
     done
   fi
 )}
@@ -1182,7 +1182,7 @@ LawsS3Cat() { (
 
   # loop by the number of arguments.
   for arg in "$@"; do
-    PrintS3GetObject "${arg}"
+    PrintS3GetObject "$(PrintSchemeSlashSlashRemoved "${arg}")"
   done
 )}
 
@@ -1243,7 +1243,7 @@ LawsS3Cp() {
     # vars for cURL
     HTTPMethod='PUT'
     HashedPayload="$(openssl dgst -sha256 "${SourcePath}" | sed 's/^.*[[:blank:]]//')"
-    RequestPath="/$(URIEncodeWithoutSlash "${destinationPath}")"
+    RequestPath="/$(URIEncodeWithoutSlash "$(PrintSchemeSlashSlashRemoved "${destinationPath}")")"
     CanonicalQueryString=''
 
     # Call API
@@ -1261,7 +1261,7 @@ LawsS3Cp() {
   elif [ "${sourcePathExist}" ] && [ "${destinationBucketExist}" ]; then
     # GET
     tmpFileForS3ToS3=$(mktemp)
-    PrintS3GetObject "${SourcePath}" > "${tmpFileForS3ToS3}"
+    LawsS3Cat "${SourcePath}" > "${tmpFileForS3ToS3}"
 
     # PUT
     #PrintErrLog D "upload ${SourcePath} to ${destinationPath}"
@@ -1280,11 +1280,11 @@ LawsS3Cp() {
 
     if [ -d "${destinationPath}" ]; then
       #PrintErrLog D "download ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
-      PrintS3GetObject "${SourcePath}" > "${destinationPath}/$(basename -- "${SourcePath}")"
+      LawsS3Cat "${SourcePath}" > "${destinationPath}/$(basename -- "${SourcePath}")"
       return $?
     elif [ ! -d "${destinationPath}" ] && [ -d "$(dirname "${destinationPath}")" ]; then
       #PrintErrLog D "download ${SourcePath} to ${destinationPath}"
-      PrintS3GetObject "${SourcePath}" > "${destinationPath}"
+      LawsS3Cat "${SourcePath}" > "${destinationPath}"
       return $?
     fi
 
@@ -1418,6 +1418,7 @@ __complete_laws() {
     fi
     eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_pre_exe} $(ls -aCdF "${cur}"* 2>/dev/null) -" -- "${cur}") )'
   fi
+  __ltrim_colon_completions "$cur"
 }
 # shellcheck disable=SC2039
 [ -z "$(command -v complete)" ] || complete -F __complete_laws laws
