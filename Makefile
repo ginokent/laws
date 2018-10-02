@@ -28,6 +28,16 @@ readme:
 syntax:
 	@./.tools/syntax.sh
 
+merge:
+	CurrentBrunch=`git branch | grep ^* | sed s/^[^[:blank:]][[:blank:]]//` && \
+		git push && \
+		git checkout develop && \
+		git merge $${CurrentBrunch} && \
+		git push && \
+		git checkout master && \
+		git merge develop && \
+		git push
+
 ##
 # release
 ##
