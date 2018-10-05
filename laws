@@ -1042,6 +1042,7 @@ PrintS3ListObjects() { (
 
   # CanonicalQueryString
   CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
+  CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "delimiter=%2F&")"
   CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
   CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
