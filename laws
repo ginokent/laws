@@ -441,6 +441,25 @@ PrintExtractedByPattern() { (
 )}
 
 ##
+# extract stdin string by pattern
+# EnvironmentVariables:
+#   no
+# Arguments:
+#   $1 pattern
+# Stdin:
+#   string
+# Stdout:
+#   string that extracted by pattern
+# Stderr:
+#   no
+# Return:
+#   0 always
+##
+ExtractStdinByPattern() { (
+  grep -Eo -- "$1" /dev/stdin
+)}
+
+##
 # Print string extracted XML value
 # EnvironmentVariables:
 #   no
@@ -1042,8 +1061,8 @@ PrintS3ListObjects() { (
 
   # CanonicalQueryString
   CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
-  CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "delimiter=%2F&")"
-  CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
+  #CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "delimiter=%2F&")"
+  CanonicalQueryString="${CanonicalQueryString}delimiter=%2F&list-type=2&max-keys=${MaxKeys}"
   CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
   # run
@@ -1063,10 +1082,15 @@ PrintS3ListObjects() { (
   fi
 
   # display edited response
-  if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then
-    # output format
+  #if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then # changed to get prefix
+  if ContainRegex '</ListBucketResult>' "${response}"; then
+    # output keys
     PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
       | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 s3://'"$(PrintExtractedHTTPHost "$1")"'/\1|g'
+    # output prefixes
+    PrintExtractedXMLValue 'CommonPrefixes' "${response}" \
+      | ExtractStdinByPattern '<Prefix>[^>]*</Prefix>' \
+      | sed 's|<Prefix>\([^>]*\)</Prefix>|                    PRE/ s3://'"$(PrintExtractedHTTPHost "$1")"'/\1|g'
 
     # If exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
     if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
