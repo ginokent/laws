@@ -1025,7 +1025,7 @@ PrintS3ListBuckets() { (
   fi
 
   # return 0
-  echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 s3://\1|g;'
+  echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\.000Z|Z|; s|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 s3://\1/|g;'
 )}
 
 ##
@@ -1061,8 +1061,8 @@ PrintS3ListObjects() { (
 
   # CanonicalQueryString
   CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
-  #CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "delimiter=%2F&")"
-  CanonicalQueryString="${CanonicalQueryString}delimiter=%2F&list-type=2&max-keys=${MaxKeys}"
+  CanonicalQueryString="${CanonicalQueryString}$([ "${Recursive}" ] || printf '%s' "delimiter=%2F&")"
+  CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
   CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
   # run
@@ -1082,15 +1082,20 @@ PrintS3ListObjects() { (
   fi
 
   # display edited response
-  #if ContainRegex '[^>]*</Key><LastModified>[^<]*' "${response}"; then # changed to get prefix
   if ContainRegex '</ListBucketResult>' "${response}"; then
-    # output keys
-    PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
-      | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 s3://'"$(PrintExtractedHTTPHost "$1")"'/\1|g'
-    # output prefixes
-    PrintExtractedXMLValue 'CommonPrefixes' "${response}" \
-      | ExtractStdinByPattern '<Prefix>[^>]*</Prefix>' \
-      | sed 's|<Prefix>\([^>]*\)</Prefix>|                    PRE/ s3://'"$(PrintExtractedHTTPHost "$1")"'/\1|g'
+    if [ "${Recursive}" ]; then
+      # output keys
+      PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
+        | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 s3://'"$(PrintExtractedHTTPHost "$1")"'/\1|g'
+    else
+      # output prefixes
+      PrintExtractedXMLValue 'CommonPrefixes' "${response}" \
+        | ExtractStdinByPattern '[^>/]*/</Prefix>' \
+        | sed 's|\(.*\)</Prefix>|                 PRE \1|g'
+      # output keys
+      PrintExtractedByPattern '[^>/]*</Key><LastModified>[^<]*' "${response}" \
+        | sed 's|\.000Z|Z|; s|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g'
+    fi
 
     # If exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
     if ContainRegex '<NextContinuationToken>[^<]*' "${response}"; then
@@ -1256,11 +1261,11 @@ LawsS3Cp() {
   #responseListBucket=$(PrintS3ListBuckets)
   #destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
   # 上がアカウント外のバケットの存在判定が考慮されていないため下に変更
-  destinationBucketExist=$(PrintS3ListObjects "$(PrintExtractedHTTPHost "$(PrintSchemeSlashSlashRemoved "${destinationPath}")")" 2> /dev/null || true)
+  destinationBucketExist=$(Recursive='true' PrintS3ListObjects "$(PrintExtractedHTTPHost "$(PrintSchemeSlashSlashRemoved "${destinationPath}")")" 2> /dev/null || true)
 
   # vars about path
-  responseListPath=$(LawsS3Ls "${SourcePath}" "${destinationPath}" 2>/dev/null || true)
-  sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]${SourcePath}$" || true)
+  responseListPath=$(Recursive='true' LawsS3Ls "${SourcePath}" "${destinationPath}" 2>/dev/null || true)
+  sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]s3://${SourcePath}$" || true)
 
   # copy local to s3 (PUT)
   if [ -e "${SourcePath}" ] && [ "${destinationBucketExist}" ]; then
@@ -1344,6 +1349,7 @@ LawsS3() {
   # check sub commands
   case "$1" in
      ls) shift; LawsS3Ls "$@" ;;
+    lsr) shift; Recursive='true' && LawsS3Ls "$@" ;;
     cat) shift; LawsS3Cat "$@" ;;
      cp) shift; LawsS3Cp "$@" ;;
       *) PrintErrReadMe; exit 0 ;;
