@@ -36,7 +36,8 @@ merge:
 		git push && \
 		git checkout master && \
 		git merge develop && \
-		git push
+		git push && \
+		git checkout $${CurrentBrunch}
 
 ##
 # release
