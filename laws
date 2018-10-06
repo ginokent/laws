@@ -1374,7 +1374,7 @@ main() {
   CheckDependency '[' cat curl date grep od openssl printf sed tr
 
   # display version
-  if ContainRegex '[[:blank:]]-V|[[:blank:]]version' "$*"; then
+  if ContainRegex '[[:blank:]]-V|[[:blank:]]-*version' " $*"; then
     echo "${PROGRAM_NAME} ${VERSION}"
     return 0
   fi
