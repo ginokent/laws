@@ -1181,7 +1181,7 @@ LawsS3Ls() { (
   if ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
 
   # if no args, list buckets, else list objects by passed bucket
-  if [ "$#" = 0 ] || [ "$1" = / ]; then
+  if [ "$#" = 0 ] || [ "$1" = / ] || [ "$1" = s3:// ]; then
     PrintS3ListBuckets
   else 
     for arg in "$@"; do
