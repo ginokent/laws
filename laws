@@ -1095,7 +1095,8 @@ PrintS3ListObjects() { (
         | sed 's|\(.*\)</Prefix>|                 PRE \1|g'
       # output keys
       PrintExtractedXMLValue 'Contents' "${response}" \
-        | sed 's|.*>\([^>]*\)</Key><LastModified>\([^<]*\)<.*|\2 \1|g; s|\.000Z|Z|'
+        | sed 's|.*>\([^>]*\)</Key><LastModified>\([^<]*\)<.*|\2 \1|g; s|\.000Z|Z|' \
+        | grep -v /$ # Somehow some parefix occasionally treated as key, but exclude it from the list.
     fi
 
     # If exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
