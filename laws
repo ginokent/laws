@@ -438,7 +438,7 @@ PrintSchemeSlashSlashRemoved() { (
 ##
 PrintExtractedByPattern() { (
   echo "$2" | grep -Eo -- "$1"
-)}
+)} # not using
 
 ##
 # extract stdin string by pattern
@@ -476,7 +476,7 @@ ExtractStdinByPattern() { (
 #   0 always
 ##
 PrintExtractedXMLValue() { (
-  echo "$2" | grep -Eo "<$1>.*</$1>" | sed "s|</*$1>||g"
+  echo "$2" | grep -Eo "<$1>.*?</$1>" | sed "s|</*$1>||g"
 )}
 
 ##
@@ -1025,7 +1025,7 @@ PrintS3ListBuckets() { (
   fi
 
   # return 0
-  echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\.000Z|Z|; s|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 s3://\1/|g;'
+  echo "${response}" | grep -Eo '[^>]*</Name><CreationDate>[^<]*' | sed 's|\([^>]*\)</Name><CreationDate>\([^<]*\)|\2 s3://\1/|g; s|\.000Z|Z|'
 )}
 
 ##
@@ -1085,16 +1085,16 @@ PrintS3ListObjects() { (
   if ContainRegex '</ListBucketResult>' "${response}"; then
     if [ "${Recursive}" ]; then
       # output keys
-      PrintExtractedByPattern '[^>]*</Key><LastModified>[^<]*' "${response}" \
-        | sed 's|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 s3://'"$(PrintExtractedHTTPHost "$1")"'/\1|g'
+      PrintExtractedXMLValue 'Contents' "${response}" \
+        | sed 's|.*>\([^>]*\)</Key><LastModified>\([^<]*\)<.*|\2 s3://'"$(PrintExtractedHTTPHost "$1")"'/\1|g; s|\.000Z|Z|'
     else
       # output prefixes
       PrintExtractedXMLValue 'CommonPrefixes' "${response}" \
         | ExtractStdinByPattern '[^>/]*/</Prefix>' \
         | sed 's|\(.*\)</Prefix>|                 PRE \1|g'
       # output keys
-      PrintExtractedByPattern '[^>/]*</Key><LastModified>[^<]*' "${response}" \
-        | sed 's|\.000Z|Z|; s|\([^>]*\)</Key><LastModified>\([^<]*\)|\2 \1|g'
+      PrintExtractedXMLValue 'Contents' "${response}" \
+        | sed 's|.*>\([^>]*\)</Key><LastModified>\([^<]*\)<.*|\2 \1|g; s|\.000Z|Z|'
     fi
 
     # If exist NextContinuationToken, declare ContinuationToken and run PrintS3ListObjects
