@@ -14,7 +14,7 @@ if ! { echo "$-" | grep -q i; }; then
 set -e
 
 # Global variables
-readonly VERSION='0.1.9'
+readonly VERSION='0.2.0'
 readonly PROGRAM_NAME="$(basename -- "$0")"
 
 # When EXIT, clean up temporary files.
