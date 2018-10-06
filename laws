@@ -1072,6 +1072,7 @@ PrintS3ListObjects() { (
   if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
     # change AWSAPIEndpoint
     AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
+    PrintErrLog I "Redirect API Endpoint: ${AWSAPIEndpoint}"
     PrintS3ListObjects "$@"
     return $?
   fi
