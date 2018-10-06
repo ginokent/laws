@@ -1243,8 +1243,8 @@ LawsS3Cp() {
   if [ "$#" != 2 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
 
   # vars common
-  SourcePath="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}")"
-  destinationPath="$(PrintSchemeSlashSlashRemoved "${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}")"
+  SourcePath="${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}"
+  destinationPath="${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}"
 
   # stdin
   if [ "${SourcePath}" = - ]; then
@@ -1258,18 +1258,8 @@ LawsS3Cp() {
     destinationPath='/dev/stdout'
   fi
 
-  # vars about bucket
-  #responseListBucket=$(PrintS3ListBuckets)
-  #destinationBucketExist=$(echo "${responseListBucket}" | sed 's/^[^[:blank:]]*[[:blank:]]//' | grep "^$(PrintExtractedHTTPHost "${destinationPath}")$" || true)
-  # 上がアカウント外のバケットの存在判定が考慮されていないため下に変更
-  destinationBucketExist=$(Recursive='true' PrintS3ListObjects "$(PrintExtractedHTTPHost "$(PrintSchemeSlashSlashRemoved "${destinationPath}")")" 2> /dev/null || true)
-
-  # vars about path
-  responseListPath=$(Recursive='true' LawsS3Ls "${SourcePath}" "${destinationPath}" 2>/dev/null || true)
-  sourcePathExist=$(echo "${responseListPath}" | grep -E "[^[:blank:]][[:blank:]]s3://${SourcePath}$" || true)
-
   # copy local to s3 (PUT)
-  if [ -e "${SourcePath}" ] && [ "${destinationBucketExist}" ]; then
+  if [ -e "${SourcePath}" ] && { echo "${destinationPath}" | grep -q '^s3://'; }; then
 
     # vars for cURL
     HTTPMethod='PUT'
@@ -1289,7 +1279,7 @@ LawsS3Cp() {
     return 0
 
   # copy s3 to s3 (GET and PUT)
-  elif [ "${sourcePathExist}" ] && [ "${destinationBucketExist}" ]; then
+  elif { echo "${SourcePath} ${destinationPath}" | grep -q '^s3://.* s3://'; }; then
     # GET
     tmpFileForS3ToS3=$(mktemp)
     LawsS3Cat "${SourcePath}" > "${tmpFileForS3ToS3}"
@@ -1307,7 +1297,7 @@ LawsS3Cp() {
     return 0
 
   # copy s3 to local (GET)
-  elif [ "${sourcePathExist}" ]; then
+  elif { echo "${SourcePath}" | grep -q '^s3://'; }; then
 
     if [ -d "${destinationPath}" ]; then
       #PrintErrLog D "download ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
