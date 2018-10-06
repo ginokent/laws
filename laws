@@ -2,6 +2,7 @@
 # shellcheck disable=SC1117
 
 # TODO: make more readable.
+# TODO: support AssumeRole. ref: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
 
 ##
 # If in non interactive shell ( "$-" not containing "i" ),
