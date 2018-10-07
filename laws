@@ -418,7 +418,7 @@ ConvertSHA256Hash() { (
 #   0 always
 ##
 PrintSchemeSlashSlashRemoved() { (
-  printf '%s' "$1" | sed 's|^[^:]*://||'
+  printf '%s' "$1" | sed 's|^[^:]*:*//||'
 )}
 
 ##
