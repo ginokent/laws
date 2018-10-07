@@ -1062,7 +1062,7 @@ PrintS3ListObjects() { (
 
   # CanonicalQueryString
   CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
-  CanonicalQueryString="${CanonicalQueryString}$([ "${Recursive}" ] || printf '%s' "delimiter=%2F&")"
+  CanonicalQueryString="${CanonicalQueryString}$([ "${Recursive}" = true ] || printf '%s' "delimiter=%2F&")"
   CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
   CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
 
@@ -1085,7 +1085,7 @@ PrintS3ListObjects() { (
 
   # display edited response
   if ContainRegex '</ListBucketResult>' "${response}"; then
-    if [ "${Recursive}" ]; then
+    if [ "${Recursive}" = true ]; then
       # output keys
       PrintExtractedXMLValue 'Contents' "${response}" \
         | sed 's|.*>\([^>]*\)</Key><LastModified>\([^<]*\)<.*|\2 s3://'"$(PrintExtractedHTTPHost "$1")"'/\1|g; s|\.000Z|Z|'
@@ -1341,8 +1341,8 @@ LawsS3Cp() {
 LawsS3() {
   # check sub commands
   case "$1" in
-     ls) shift; LawsS3Ls "$@" ;;
-    lsr) shift; Recursive='true' && LawsS3Ls "$@" ;;
+     ls) shift; Recursive='false' && LawsS3Ls "$@" ;;
+    lsr) shift; Recursive='true'  && LawsS3Ls "$@" ;;
     cat) shift; LawsS3Cat "$@" ;;
      cp) shift; LawsS3Cp "$@" ;;
       *) PrintErrReadMe; exit 0 ;;
