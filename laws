@@ -1410,11 +1410,11 @@ else
 
 
 ##
-# Interactive: laws as completion
+# Interactive: laws as bash-completion
 # ref: https://blog.cybozu.io/entry/2016/09/26/080000
 #
-# The following functions are for shell-completion.
-# When executing as a laws command,
+# The following functions are for bash-completion.
+# When executing as a command,
 # the following functions are not defined nor executed.
 #
 # shellcheck disable=SC2016,SC2034,SC2039
