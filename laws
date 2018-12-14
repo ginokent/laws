@@ -1350,12 +1350,16 @@ LawsS3Cp() {
 LawsS3() {
   # check sub commands
   case "$1" in
+    subcommands)
+      echo "ls list-recursive cat cp"
+      return 0
+      ;;
     ls)
       shift
       Recursive='false'
       LawsS3Ls "$@"
       ;;
-    lsr)
+    list-recursive)
       shift
       Recursive='true'
       LawsS3Ls "$@"
@@ -1459,24 +1463,15 @@ __complete_laws() {
   local cur prev cword
   _get_comp_words_by_ref -n : cur prev cword
   if [ "${cword}" -eq 1 ]; then
-    eval 'COMPREPLY=( $(compgen -W "s3" -- "${cur}") )'
+    eval 'COMPREPLY=( $(compgen -W "'"$(laws subcommands)"'" -- "${cur}") )'
   elif [ "${cword}" -eq 2 ]; then
-    if [ "${prev}" = s3 ]; then
-      eval 'COMPREPLY=( $(compgen -W "cat cp ls lsr" -- "${cur}") )'
-    fi
-  elif [ "${cword}" -eq 3 ] && { [ "${prev}" = cat ] || [ "${prev}" = ls ] || [ "${prev}" = lsr ]; }; then
+    eval 'COMPREPLY=( $(compgen -W "'"$(laws "${prev}" subcommands)"'" -- "${cur}") )'
+  elif [ "${cword}" -ge 3 ] && { echo "s3 ${prev}" | grep -Eq "s3 +($(laws s3 subcommands | sed 's/ /|/g'))"; }; then
     if [ -z "${__laws_s3_ls_completion_pre_exe_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_pre_exe_time)) -gt 30 ]; then
       __laws_s3_ls_completion_pre_exe_time=$(date +%s)
-      __laws_s3_ls_completion_pre_exe="$(laws s3 lsr | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+      __laws_s3_ls_completion_pre_exe="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
     fi
     eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_pre_exe}" -- "${cur}") )'
-  else
-    # Cache the execution result of the command for 30 seconds.
-    if [ -z "${__laws_s3_cp_completion_pre_exe_time}" ] || [ $(($(date +%s)-__laws_s3_cp_completion_pre_exe_time)) -gt 30 ]; then
-      __laws_s3_cp_completion_pre_exe_time=$(date +%s)
-      __laws_s3_cp_completion_pre_exe="$(laws s3 lsr | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
-    fi
-    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_cp_completion_pre_exe} $(ls -aCdF "${cur}"* 2>/dev/null) -" -- "${cur}") )'
   fi
   # COMP_WORDBREAKS 対応
   # Bash Command-Line Tab Completion Colon Character - https://stackoverflow.com/questions/25362968/bash-command-line-tab-completion-colon-character
