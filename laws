@@ -6,7 +6,7 @@
 
 ##
 # If in non interactive shell ( "$-" not containing "i" ),
-# execute "laws" as command.
+# execute script as command.
 ##
 if ! { echo "$-" | grep -q i; }; then
 # -- Non Interactive ----------------
