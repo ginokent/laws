@@ -15,8 +15,8 @@ if ! { echo "$-" | grep -q i; }; then
 set -e
 
 # Global variables
-readonly VERSION='0.2.0'
-readonly PROGRAM_NAME="$(basename -- "$0")"
+LAWS_VERSION='0.2.0'
+LAWS_PROGRAM_NAME="$(basename -- "$0")"
 
 # When EXIT, clean up temporary files.
 trap '{
@@ -203,7 +203,7 @@ PrintErrLog() { (
   esac
 
   # output log message to stderr
-  printf '%s\n' "${logMessages}" | awk '{print "'"$(PrintDateUTC) ${PROGRAM_NAME}[$$]: ${tag}"' "$0}' >/dev/stderr
+  printf '%s\n' "${logMessages}" | awk '{print "'"$(PrintDateUTC) ${LAWS_PROGRAM_NAME}[$$]: ${tag}"' "$0}' >/dev/stderr
 )}
 
 ##
@@ -677,8 +677,17 @@ PrintAWSAPIEndpoint() { (
 
   # switch by service
   case "${service}" in
-    s3) [ "${region}" = us-east-1 ] && echo 's3.amazonaws.com' || echo "s3-${region}.amazonaws.com" ;;
-     *) PrintErrLog E "${service} not support"; return 1 ;;
+    s3)
+      if [ "${region}" = us-east-1 ]; then
+        echo 's3.amazonaws.com'
+      else
+        echo "s3-${region}.amazonaws.com"
+      fi
+      ;;
+    *)
+      PrintErrLog E "${service} not support"
+      return 1
+      ;;
   esac
 )}
 
@@ -1271,7 +1280,7 @@ LawsS3Cp() {
 
     # Call API
     response=$(CallAPIS3PUT)
-    printf "%s" "${response}" > /dev/stderr
+    printf '%s' "${response}" > /dev/stderr
 
     # if err != nil
     if ContainRegex '</Error>' "${response}"; then
@@ -1289,7 +1298,7 @@ LawsS3Cp() {
     # PUT
     #PrintErrLog D "upload ${SourcePath} to ${destinationPath}"
     response=$(LawsS3Cp "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
-    printf "%s" "${response}" > /dev/stderr
+    printf '%s' "${response}" > /dev/stderr
 
     # If the tmp file can be uploaded, output the appropriate log.
     if ContainRegex '</Error>' "${response}"; then
@@ -1341,11 +1350,28 @@ LawsS3Cp() {
 LawsS3() {
   # check sub commands
   case "$1" in
-     ls) shift; Recursive='false' && LawsS3Ls "$@" ;;
-    lsr) shift; Recursive='true'  && LawsS3Ls "$@" ;;
-    cat) shift; LawsS3Cat "$@" ;;
-     cp) shift; LawsS3Cp "$@" ;;
-      *) PrintErrReadMe; exit 0 ;;
+    ls)
+      shift
+      Recursive='false'
+      LawsS3Ls "$@"
+      ;;
+    lsr)
+      shift
+      Recursive='true'
+      LawsS3Ls "$@"
+      ;;
+    cat)
+      shift
+      LawsS3Cat "$@"
+      ;;
+    cp)
+      shift
+      LawsS3Cp "$@"
+      ;;
+    *)
+      PrintErrReadMe
+      exit 0
+      ;;
   esac
 }
 
@@ -1354,8 +1380,8 @@ LawsS3() {
 # EnvironmentVariables:
 #   depends on LawsS3
 #   depends on SetAWSAccessKey
-#   PROGRAM_NAME required
-#   VERSION required
+#   LAWS_PROGRAM_NAME required
+#   LAWS_VERSION required
 # Arguments:
 #   $1 sub command
 #   $2 sub command
@@ -1376,20 +1402,30 @@ main() {
 
   # display version
   if ContainRegex '[[:blank:]]-V|[[:blank:]]-*version' " $*"; then
-    echo "${PROGRAM_NAME} ${VERSION}"
+    echo "${LAWS_PROGRAM_NAME} ${LAWS_VERSION}"
     return 0
   fi
 
   # declare vars for methods
-  DateYMD=$(date +%Y%m%d)
-  DateISO8601=$(TZ=GMT date +%Y%m%dT%H%M%SZ)
+  DateYMD=$(TZ=UTC date +%Y%m%d)
+  DateISO8601=$(TZ=UTC date +%Y%m%dT%H%M%SZ)
   AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
   SetAWSAccessKey
 
   # check sub commands
   case "$1" in
-    s3) shift && LawsS3 "$@" ;;
-     *) PrintErrReadMe; exit 0 ;;
+    subcommands)
+      echo "s3"
+      return 0
+      ;;
+    s3)
+      shift
+      LawsS3 "$@"
+      ;;
+    *)
+      PrintErrReadMe
+      return 0
+      ;;
   esac
 }
 
