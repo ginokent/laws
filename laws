@@ -1471,7 +1471,7 @@ __complete_laws() {
       __laws_s3_ls_completion_pre_exe_time=$(date +%s)
       __laws_s3_ls_completion_pre_exe="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
     fi
-    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_pre_exe}" -- "${cur}") )'
+    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_pre_exe} $(ls -aCdF "${cur}"* 2>/dev/null) -" -- "${cur}") )'
   fi
   # COMP_WORDBREAKS 対応
   # Bash Command-Line Tab Completion Colon Character - https://stackoverflow.com/questions/25362968/bash-command-line-tab-completion-colon-character
