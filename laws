@@ -46,7 +46,7 @@ trap '{
 # Return:
 #   0 always
 ##
-PrintErrReadMe() { (
+PrintStderrReadMe() { (
 cat <<'README' >/dev/stderr
 
 laws
@@ -188,10 +188,10 @@ PrintDateUTC() { (
 # Return:
 #   0 always
 ##
-PrintErrLog() { (
+PrintStderrLog() { (
   # vars
-  logLevel="${1:?"$(PrintDateUTC) [FATAL] PrintErrLog(): requires \"logLevel\" as \$1"}"
-  logMessages="${2:?"$(PrintDateUTC) [FATAL] PrintErrLog(): requires \"logMessages\" as \$2"}"
+  logLevel="${1:?"$(PrintDateUTC) [FATAL] PrintStderrLog(): requires \"logLevel\" as \$1"}"
+  logMessages="${2:?"$(PrintDateUTC) [FATAL] PrintStderrLog(): requires \"logMessages\" as \$2"}"
   
   # check logLevel
   case "${logLevel}" in
@@ -307,7 +307,7 @@ ContainS3Scheme() { (
 CheckDependency() { (
   for cmd in "$@"; do
     if ! { command -v -- "${cmd}" >/dev/null; }; then
-      PrintErrLog E "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
+      PrintStderrLog E "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
       # If command not found in PATH, it terminates abnormally immediately.
       exit 1
     fi
@@ -332,8 +332,8 @@ CheckDependency() { (
 ##
 ParseINIforEval() { (
   # For the setting in the ini file, output commands which define them as shell variables prefixed "INI_".
-  iniSectionPattern="${1:?"$(PrintErrLog F "ParseINIforEval(): requires \"iniSectionPattern\" as \$1")"}"
-  file="${2:?"$(PrintErrLog F "ParseINIforEval(): requires \"file\" as \$2")"}"
+  iniSectionPattern="${1:?"$(PrintStderrLog F "ParseINIforEval(): requires \"iniSectionPattern\" as \$1")"}"
+  file="${2:?"$(PrintStderrLog F "ParseINIforEval(): requires \"file\" as \$2")"}"
   sed "
     s/[[:blank:]]*\=[[:blank:]]*/=/g
     s/[#;].*$//
@@ -536,7 +536,7 @@ PrintExtractedHTTPPath() { (
 ##
 URIEncode() { (
   if { ContainMultiBytesChar "$1"; }; then
-    PrintErrLog E 'containing multi bytes char'
+    PrintStderrLog E 'containing multi bytes char'
     # If multi-byte characters are included, abnormal termination immediately.
     exit 1
   fi
@@ -572,7 +572,7 @@ URIEncode() { (
 ##
 URIEncodeWithoutSlash() { (
   if { ContainMultiBytesChar "$1"; }; then
-    PrintErrLog E 'containing multi bytes char'
+    PrintStderrLog E 'containing multi bytes char'
     # If multi-byte characters are included, abnormal termination immediately.
     exit 1
   fi
@@ -618,13 +618,13 @@ PrintAWSRegion() { (
       echo "${INI_region}"
       return 0
     else
-      PrintErrLog W "PrintAWSRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
+      PrintStderrLog W "PrintAWSRegion(): Failed to parse ~/.aws/config: AWS_PROFILE=${AWS_PROFILE:-default}"
     fi
   fi
 
   # 3. try to get region from AWS meta-data
   if ! { curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; }; then
-    PrintErrLog E "$(cat <<'ERROR'
+    PrintStderrLog E "$(cat <<'ERROR'
 
 PrintAWSRegion(): Not specified AWS Region
 Follow the steps below to register AWS region:
@@ -672,8 +672,8 @@ PrintAWSAPIEndpoint() { (
   [ -z "${AWSAPIEndpoint}" ] || { echo "${AWSAPIEndpoint}"; return 0; }
 
   # Local variables
-  service="${1:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"service\" as \$1")"}"
-  region="${2:?"$(PrintErrLog F "PrintAWSAPIEndpoint(): requires \"region\" as \$2")"}"
+  service="${1:?"$(PrintStderrLog F "PrintAWSAPIEndpoint(): requires \"service\" as \$1")"}"
+  region="${2:?"$(PrintStderrLog F "PrintAWSAPIEndpoint(): requires \"region\" as \$2")"}"
 
   # switch by service
   case "${service}" in
@@ -685,7 +685,7 @@ PrintAWSAPIEndpoint() { (
       fi
       ;;
     *)
-      PrintErrLog E "${service} not support"
+      PrintStderrLog E "${service} not support"
       return 1
       ;;
   esac
@@ -749,8 +749,8 @@ SetAWSAccessKey() {
     return 0
   fi
 
-  # PrintErrLog and EXIT abnormally immediately
-  PrintErrLog E "$(cat <<'ERROR'
+  # PrintStderrLog and EXIT abnormally immediately
+  PrintStderrLog E "$(cat <<'ERROR'
 
 SetAWSAccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
@@ -1082,7 +1082,7 @@ PrintS3ListObjects() { (
   if ContainRegex '<Code>PermanentRedirect</Code>' "${response}"; then
     # change AWSAPIEndpoint
     AWSAPIEndpoint=$(PrintExtractedXMLValue 'Endpoint' "${response}")
-    PrintErrLog I "Redirect API Endpoint: ${AWSAPIEndpoint}"
+    PrintStderrLog I "Redirect API Endpoint: ${AWSAPIEndpoint}"
     PrintS3ListObjects "$@"
     return $?
   fi
@@ -1141,7 +1141,7 @@ PrintS3ListObjects() { (
 ##
 PrintS3GetObject() { (
   # vars common
-  s3Path="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintErrLog F "PrintS3GetObject(): requires \"s3Path\" as \$1")"}")"
+  s3Path="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintStderrLog F "PrintS3GetObject(): requires \"s3Path\" as \$1")"}")"
 
   # vars for methods
   HTTPMethod='GET'
@@ -1190,7 +1190,7 @@ PrintS3GetObject() { (
 ##
 LawsS3Ls() { (
   # if args contain "-h" or "--help" or "help" or ..., display README
-  if ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
+  if ContainHelpOption "$*"; then PrintStderrReadMe; exit 0; fi
 
   # if no args, list buckets, else list objects by passed bucket
   if [ "$#" = 0 ] || [ "$1" = / ] || [ "$1" = s3:// ]; then
@@ -1220,7 +1220,7 @@ LawsS3Ls() { (
 ##
 LawsS3Cat() { (
   # if 0 arg OR args contain "-h" or "--help" or "help" or ..., display README
-  if [ "$#" = 0 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
+  if [ "$#" = 0 ] || ContainHelpOption "$*"; then PrintStderrReadMe; exit 0; fi
 
   # loop by the number of arguments.
   for arg in "$@"; do
@@ -1251,11 +1251,11 @@ LawsS3Cat() { (
 ##
 LawsS3Cp() {
   # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-  if [ "$#" != 2 ] || ContainHelpOption "$*"; then PrintErrReadMe; exit 0; fi
+  if [ "$#" != 2 ] || ContainHelpOption "$*"; then PrintStderrReadMe; exit 0; fi
 
   # vars common
-  SourcePath="${1:?"$(PrintErrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}"
-  destinationPath="${2:?"$(PrintErrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}"
+  SourcePath="${1:?"$(PrintStderrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}"
+  destinationPath="${2:?"$(PrintStderrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}"
 
   # stdin
   if [ "${SourcePath}" = - ]; then
@@ -1296,7 +1296,7 @@ LawsS3Cp() {
     LawsS3Cat "${SourcePath}" > "${tmpFileForS3ToS3}"
 
     # PUT
-    #PrintErrLog D "upload ${SourcePath} to ${destinationPath}"
+    #PrintStderrLog D "upload ${SourcePath} to ${destinationPath}"
     response=$(LawsS3Cp "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
     printf '%s' "${response}" > /dev/stderr
 
@@ -1311,20 +1311,20 @@ LawsS3Cp() {
   elif { echo "${SourcePath}" | grep -q '^s3://'; }; then
 
     if [ -d "${destinationPath}" ]; then
-      #PrintErrLog D "download ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
+      #PrintStderrLog D "download ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
       LawsS3Cat "${SourcePath}" > "${destinationPath}/$(basename -- "${SourcePath}")"
       return $?
     elif [ ! -d "${destinationPath}" ] && [ -d "$(dirname "${destinationPath}")" ]; then
-      #PrintErrLog D "download ${SourcePath} to ${destinationPath}"
+      #PrintStderrLog D "download ${SourcePath} to ${destinationPath}"
       LawsS3Cat "${SourcePath}" > "${destinationPath}"
       return $?
     fi
 
-    PrintErrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${SourcePath}\"")"
+    PrintStderrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${SourcePath}\"")"
     return 1
   fi
 
-  PrintErrLog E "\"${SourcePath}\" and \"${destinationPath}\" not found or local files."
+  PrintStderrLog E "\"${SourcePath}\" and \"${destinationPath}\" not found or local files."
   return 1
 }
 
@@ -1369,7 +1369,7 @@ LawsS3() {
       LawsS3Cp "$@"
       ;;
     *)
-      PrintErrReadMe
+      PrintStderrReadMe
       exit 0
       ;;
   esac
@@ -1423,7 +1423,7 @@ main() {
       LawsS3 "$@"
       ;;
     *)
-      PrintErrReadMe
+      PrintStderrReadMe
       return 0
       ;;
   esac
