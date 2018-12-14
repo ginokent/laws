@@ -54,14 +54,13 @@ laws
 
 Lightweight shell script for Amazon Web Service Command Line Interface like AWS CLI.
 
+Currently `laws` only supports **Amazon S3**.
+
 
 ## TL;DR
 
 ```
 curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 ls
-curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 ls s3://your-bucket/prefix
-curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 cat s3://your-bucket/path/to/file
-curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 cp s3://your-bucket/path/to/file /path/to/file
 ```
 
 
