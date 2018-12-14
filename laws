@@ -1465,7 +1465,7 @@ __complete_laws() {
     eval 'COMPREPLY=( $(compgen -W "'"$(laws subcommands)"'" -- "${cur}") )'
   elif [ "${cword}" -eq 2 ]; then
     eval 'COMPREPLY=( $(compgen -W "'"$(laws "${prev}" subcommands)"'" -- "${cur}") )'
-  elif [ "${cword}" -ge 3 ] && { echo "s3 ${prev}" | grep -Eq "s3 +($(laws s3 subcommands | sed 's/ /|/g'))"; }; then
+  elif { echo "${COMP_WORDS[@]}" | grep -Eq "^laws s3 +($(laws s3 subcommands | sed 's/ /|/g'))"; }; then  # Amazon S3
     if [ -z "${__laws_s3_ls_completion_pre_exe_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_pre_exe_time)) -gt 30 ]; then
       __laws_s3_ls_completion_pre_exe_time=$(date +%s)
       __laws_s3_ls_completion_pre_exe="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
