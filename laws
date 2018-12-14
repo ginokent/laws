@@ -169,7 +169,7 @@ README
 #   0 always
 ##
 PrintDateUTC() { (
-  LC_ALL=C LANG=C TZ=UTC date +%Y%m%dT%H%M%SZ
+  TZ=UTC date +%Y%m%dT%H%M%SZ
 )}
 
 ##
