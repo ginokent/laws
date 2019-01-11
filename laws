@@ -33,7 +33,7 @@ trap '{
 
 ##
 # Output README
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   no
@@ -154,7 +154,7 @@ README
 
 ##
 # Output UTC date for log
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   no
@@ -173,7 +173,7 @@ PrintDateUTC() { (
 
 ##
 # Output log
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 log level
@@ -207,7 +207,7 @@ PrintStderrLog() { (
 
 ##
 # Check containing multi bytes character
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 string to be checked containing multi bytes characters
@@ -227,7 +227,7 @@ ContainMultiBytesChar() { (
 
 ##
 # Check containing regex passed
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 regex pattern
@@ -248,7 +248,7 @@ ContainRegex() { (
 
 ##
 # Check containing "-h" or "--help" or "help"
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $* all arguments to be checked by pattern
@@ -269,7 +269,7 @@ ContainHelpOption() { (
 
 ##
 # Check containing "^s3://"
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $* all arguments to be checked by pattern
@@ -289,7 +289,7 @@ ContainS3Scheme() { (
 
 ##
 # Check existing dependency commands in PATH
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $@ dependent commands
@@ -315,7 +315,7 @@ CheckDependency() { (
 
 ##
 # Parse INI file and Print stdout for eval
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 ini section. if extract "[foo]" section, pass "foo" as $1
@@ -345,7 +345,7 @@ ParseINIforEval() { (
 
 ##
 # Convert data ($1) to hexadecimal
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 string
@@ -364,7 +364,7 @@ ConvertHex() { (
 
 ##
 # hash (Hash-based Message Authentication Code) string ($2) by hexkey ($1)
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 hexkey
@@ -384,7 +384,7 @@ ConvertHMAC() { (
 
 ##
 # SHA256 Hash string ($1)
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 string
@@ -403,7 +403,7 @@ ConvertSHA256Hash() { (
 
 ##
 # Print string without scheme+slash+slash ( like http:// https:// s3:// ssh:// ... )
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 URI string
@@ -422,7 +422,7 @@ PrintSchemeSlashSlashRemoved() { (
 
 ##
 # Print string extracted by pattern
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 pattern
@@ -442,7 +442,7 @@ PrintExtractedByPattern() { (
 
 ##
 # extract stdin string by pattern
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 pattern
@@ -461,7 +461,7 @@ ExtractStdinByPattern() { (
 
 ##
 # Print string extracted XML value
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 XML tag
@@ -481,7 +481,7 @@ PrintExtractedXMLValue() { (
 
 ##
 # Print string extracted HTTP host
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 URI string
@@ -500,7 +500,7 @@ PrintExtractedHTTPHost() { (
 
 ##
 # Print string extracted HTTP path
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 URI string
@@ -519,7 +519,7 @@ PrintExtractedHTTPPath() { (
 
 ##
 # Print string that URI-Encoded
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 URI string
@@ -555,7 +555,7 @@ URIEncode() { (
 
 ##
 # Print string that URI-Encoded without slash /
-# EnvironmentVariables:
+# RequiredFunctionsAndVariables:
 #   no
 # Arguments:
 #   $1 URI string
@@ -591,8 +591,8 @@ URIEncodeWithoutSlash() { (
 
 ##
 # Print "AWS Region" aquired by Environment Variable "AWS_REGION" OR "~/.aws/config" OR "169.254.169.254"
-# EnvironmentVariables:
-#   AWS_REGION option
+# RequiredFunctionsAndVariables:
+#   AWS_REGION (option)
 # Arguments:
 #   no
 # Stdin:
@@ -650,9 +650,9 @@ ERROR
 ##
 # Print "AWS API Endpoint" aquired by Service Name AND AWS Region
 # If already "AWSAPIEndpoint" defined, return normally without doing anything
-# EnvironmentVariables:
-#   AWSAPIEndpoint option
-#   AWS_REGION option
+# RequiredFunctionsAndVariables:
+#   AWSAPIEndpoint (option)
+#   AWS_REGION (option)
 # Arguments:
 #   $1 Service Name
 #   $2 AWS Region
@@ -693,11 +693,11 @@ PrintAWSAPIEndpoint() { (
 ##
 # Set global variables AWSAccessKeyId AND AWSSecretAccessKey
 # If already "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally without doing anything
-# EnvironmentVariables:
-#   AWSAccessKeyId option
-#   AWSSecretAccessKey option
-#   AWS_ACCESS_KEY_ID option
-#   AWS_SECRET_ACCESS_KEY option
+# RequiredFunctionsAndVariables:
+#   AWSAccessKeyId (option)
+#   AWSSecretAccessKey (option)
+#   AWS_ACCESS_KEY_ID (option)
+#   AWS_SECRET_ACCESS_KEY (option)
 # Arguments:
 #   no
 # Stdin:
@@ -775,12 +775,12 @@ ERROR
 
 ##
 # Print Header for Request to AWS API
-# EnvironmentVariables:
-#   AWSAPIEndpoint required
-#   #HTTPMethod required # Unnecessary?
-#   HashedPayload required
-#   DateISO8601 required
-#   STSToken option
+# RequiredFunctionsAndVariables:
+#   AWSAPIEndpoint (required)
+#   #HTTPMethod (required) # Unnecessary?
+#   HashedPayload (required)
+#   DateISO8601 (required)
+#   STSToken (option)
 # Arguments:
 #   no
 # Stdin:
@@ -803,8 +803,8 @@ PrintHTTPHeader() { (
 ##
 # Print CanonicalHeader of AWS Signature Version 4
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-# EnvironmentVariables:
-#   depends on PrintHTTPHeader
+# RequiredFunctionsAndVariables:
+#   PrintHTTPHeader (depend)
 # Arguments:
 #   no
 # Stdin:
@@ -823,12 +823,12 @@ PrintCanonicalHeader() { (
 ##
 # Print CanonicalRequest of AWS Signature Version 4
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-# EnvironmentVariables:
-#   depends on PrintCanonicalHeader
-#   HTTPMethod required
-#   RequestPath required
-#   CanonicalQueryString required
-#   HashedPayload required
+# RequiredFunctionsAndVariables:
+#   PrintCanonicalHeader (depend)
+#   HTTPMethod (required)
+#   RequestPath (required)
+#   CanonicalQueryString (required)
+#   HashedPayload (required)
 # Arguments:
 #   no
 # Stdin:
@@ -853,12 +853,12 @@ PrintCanonicalRequest() { (
 ##
 # Print StringToSign of AWS Signature Version 4
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-# EnvironmentVariables:
-#   depends on PrintAWSRegion
-#   depends on ConvertSHA256Hash
-#   depends on PrintCanonicalRequest
-#   DateISO8601 required
-#   DateYMD required
+# RequiredFunctionsAndVariables:
+#   PrintAWSRegion (depend)
+#   ConvertSHA256Hash (depend)
+#   PrintCanonicalRequest (depend)
+#   DateISO8601 (required)
+#   DateYMD (required)
 # Arguments:
 #   no
 # Stdin:
@@ -880,13 +880,13 @@ PrintStringtoSign() { (
 ##
 # Print Signature of AWS Signature Version 4
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-# EnvironmentVariables:
-#   depends on ConvertHMAC
-#   depends on ConvertHex
-#   depends on PrintAWSRegion
-#   depends on PrintStringtoSign
-#   AWSSecretAccessKey required
-#   DateYMD required
+# RequiredFunctionsAndVariables:
+#   ConvertHMAC (depend)
+#   ConvertHex (depend)
+#   PrintAWSRegion (depend)
+#   PrintStringtoSign (depend)
+#   AWSSecretAccessKey (required)
+#   DateYMD (required)
 # Arguments:
 #   no
 # Stdin:
@@ -915,12 +915,12 @@ PrintSignature() { (
 ##
 # Print Authorization of AWS Signature Version 4
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-# EnvironmentVariables:
-#   depends on PrintAWSRegion
-#   depends on PrintCanonicalHeader
-#   depends on PrintSignature
-#   AWSAccessKeyId required
-#   DateYMD required
+# RequiredFunctionsAndVariables:
+#   PrintAWSRegion (depend)
+#   PrintCanonicalHeader (depend)
+#   PrintSignature (depend)
+#   AWSAccessKeyId (required)
+#   DateYMD (required)
 # Arguments:
 #   no
 # Stdin:
@@ -944,13 +944,13 @@ PrintAuthorization() { (
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectGET.html
-# EnvironmentVariables:
-#   depends on PrintCanonicalHeader
-#   depends on PrintAuthorization
-#   HTTPMethod required
-#   AWSAPIEndpoint required
-#   RequestPath required
-#   CanonicalQueryString required
+# RequiredFunctionsAndVariables:
+#   PrintCanonicalHeader (depend)
+#   PrintAuthorization (depend)
+#   HTTPMethod (required)
+#   AWSAPIEndpoint (required)
+#   RequestPath (required)
+#   CanonicalQueryString (required)
 # Arguments:
 #   no
 # Stdin:
@@ -973,14 +973,14 @@ CallAPIS3GET() { (
 ##
 # Call S3 API PUT
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/RESTObjectPUT.html
-# EnvironmentVariables:
-#   depends on PrintHTTPHeader
-#   depends on PrintAuthorization
-#   HTTPMethod required
-#   SourcePath required
-#   AWSAPIEndpoint required
-#   RequestPath required
-#   CanonicalQueryString option
+# RequiredFunctionsAndVariables:
+#   PrintHTTPHeader (depend)
+#   PrintAuthorization (depend)
+#   HTTPMethod (required)
+#   SourcePath (required)
+#   AWSAPIEndpoint (required)
+#   RequestPath (required)
+#   CanonicalQueryString (option)
 # Arguments:
 #   no
 # Stdin:
@@ -1004,9 +1004,9 @@ CallAPIS3PUT() { (
 ##
 # Print S3 List Buckets
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
-# EnvironmentVariables:
-#   depends on ConvertSHA256Hash
-#   depends on CallAPIS3GET
+# RequiredFunctionsAndVariables:
+#   ConvertSHA256Hash (depend)
+#   CallAPIS3GET (depend)
 # Arguments:
 #   "/" or ""
 # Stdin:
@@ -1040,11 +1040,11 @@ PrintS3ListBuckets() { (
 ##
 # Print S3 List Object
 #   https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
-# EnvironmentVariables:
-#   depends on CallAPIS3GET
-#   MaxKeys option
-#   ContinuationToken option
-#   Prefix option
+# RequiredFunctionsAndVariables:
+#   CallAPIS3GET (depend)
+#   MaxKeys (option)
+#   ContinuationToken (option)
+#   Prefix (option)
 # Arguments:
 #   $1 S3 Object Path
 # Stdin:
@@ -1124,8 +1124,8 @@ PrintS3ListObjects() { (
 
 ##
 # Print S3 S3 Get Object contents
-# EnvironmentVariables:
-#   depends on CallAPIS3GET
+# RequiredFunctionsAndVariables:
+#   CallAPIS3GET (depend)
 # Arguments:
 #   $1 S3 Object Path
 # Stdin:
@@ -1172,9 +1172,9 @@ PrintS3GetObject() { (
 
 ##
 # laws s3 ls
-# EnvironmentVariables:
-#   depends on PrintS3ListBuckets
-#   depends on PrintS3ListObjects
+# RequiredFunctionsAndVariables:
+#   PrintS3ListBuckets (depend)
+#   PrintS3ListObjects (depend)
 # Arguments:
 #   $@ S3 Objects Paths
 # Stdin:
@@ -1203,8 +1203,8 @@ LawsS3Ls() { (
 
 ##
 # laws s3 cat
-# EnvironmentVariables:
-#   depends on PrintS3GetObject
+# RequiredFunctionsAndVariables:
+#   PrintS3GetObject (depend)
 # Arguments:
 #   $@ S3 Objects Paths
 # Stdin:
@@ -1229,12 +1229,12 @@ LawsS3Cat() { (
 
 ##
 # laws s3 cp
-# EnvironmentVariables:
-#   depends on LawsS3Ls
-#   depends on PrintS3ListBuckets
-#   depends on PrintS3ListObjects
-#   depends on PrintS3GetObject
-#   depends on CallAPIS3PUT
+# RequiredFunctionsAndVariables:
+#   LawsS3Ls (depend)
+#   PrintS3ListBuckets (depend)
+#   PrintS3ListObjects (depend)
+#   PrintS3GetObject (depend)
+#   CallAPIS3PUT (depend)
 # Arguments:
 #   $1 source path
 #   $2 destination path
@@ -1329,10 +1329,10 @@ LawsS3Cp() {
 
 ##
 # laws s3
-# EnvironmentVariables:
-#   depends on LawsS3Ls
-#   depends on LawsS3Cat
-#   depends on LawsS3Cp
+# RequiredFunctionsAndVariables:
+#   LawsS3Ls (depend)
+#   LawsS3Cat (depend)
+#   LawsS3Cp (depend)
 # Arguments:
 #   $1 sub command
 #   $2~ sub command's arguments
@@ -1380,11 +1380,11 @@ LawsS3() {
 
 ##
 # laws
-# EnvironmentVariables:
-#   depends on LawsS3
-#   depends on SetAWSAccessKey
-#   LAWS_PROGRAM_NAME required
-#   LAWS_VERSION required
+# RequiredFunctionsAndVariables:
+#   LawsS3 (depend)
+#   SetAWSAccessKey (depend)
+#   LAWS_PROGRAM_NAME (required)
+#   LAWS_VERSION (required)
 # Arguments:
 #   $1 sub command
 #   $2 sub command
