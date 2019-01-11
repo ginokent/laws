@@ -95,7 +95,7 @@ This program relies heavily on "AWS Signature Version 4".
 
 ## TODO
 - Support DELETE Method
-- Support prefix like awscli
+- Support `--prefix` like awscli
 
 
 ---
