@@ -15,7 +15,7 @@ if ! { echo "$-" | grep -q i; }; then
 set -e
 
 # Global variables
-LAWS_VERSION='0.2.0'
+LAWS_VERSION='0.2.2'
 LAWS_PROGRAM_NAME="$(basename -- "$0")"
 
 # When EXIT, clean up temporary files.
@@ -263,7 +263,7 @@ ContainRegex() { (
 #   1 arguments NOT contain help option
 ##
 ContainHelpOption() { (
-  #                  "-h" "--help"           "a -h b" "a --help b"  "help"
+  #             "-h" "--help"          |"a -h b" "a --help b" |"help"
   ContainRegex '^[[:blank:]]*\-+h(elp)?|[[:blank:]]+\-+h(elp)?|^[[:blank:]]*help[[:blank:]]*$' "$*"
 )}
 
