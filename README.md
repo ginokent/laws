@@ -68,13 +68,13 @@ laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
 Tab Completion.
 
 ```
-. $(command -v laws)
-```
-
-OR  
-
-```
 . /path/to/laws
+```
+
+if laws command is in $PATH: 
+
+```
+. $(command -v laws)
 ```
 
 
