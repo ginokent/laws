@@ -15,7 +15,7 @@ if ! { echo "$-" | grep -q i; }; then
 set -e
 
 # Global variables
-LAWS_VERSION='0.2.2'
+LAWS_VERSION='0.2.3'
 LAWS_PROGRAM_NAME="$(basename -- "$0")"
 
 # When EXIT, clean up temporary files.
@@ -730,7 +730,7 @@ SetAWSAccessKey() {
   fi
 
   # 2. try to get credentials from `~/.aws/config` and `~/.aws/credentials`
-  if { grep -q "[^#]*${AWS_PROFILE:-default}" ~/.aws/credentials; }; then
+  if [ -r ~/.aws/credentials ] && { grep -q "[^#]*${AWS_PROFILE:-default}" ~/.aws/credentials; }; then
     INI_aws_access_key_id='' INI_aws_secret_access_key=''
     eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
     AWSAccessKeyId="${INI_aws_access_key_id}" AWSSecretAccessKey="${INI_aws_secret_access_key}"
