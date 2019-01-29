@@ -1351,6 +1351,12 @@ LawsS3Cp() {
 #   1 failure
 ##
 LawsS3() {
+  # declare vars for methods
+  DateYMD=$(TZ=UTC date +%Y%m%d)
+  DateISO8601=$(TZ=UTC date +%Y%m%dT%H%M%SZ)
+  AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
+  SetAWSAccessKey
+
   # check sub commands
   case "$1" in
     subcommands)
@@ -1412,12 +1418,6 @@ main() {
     echo "${LAWS_PROGRAM_NAME} ${LAWS_VERSION}"
     return 0
   fi
-
-  # declare vars for methods
-  DateYMD=$(TZ=UTC date +%Y%m%d)
-  DateISO8601=$(TZ=UTC date +%Y%m%dT%H%M%SZ)
-  AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
-  SetAWSAccessKey
 
   # check sub commands
   case "$1" in
