@@ -737,8 +737,8 @@ SetAWSAccessKey() {
   fi
 
   # 3. try to get credentials from AWS meta-data Instance Profile
-  instanceProfile=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || true)
-  secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfile}" 2>/dev/null || true)
+  instanceProfileName=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || true)
+  secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfileName}" 2>/dev/null || true)
   AWSAccessKeyId=$(echo "${secCredJSON}" | grep 'AccessKeyId' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
   AWSSecretAccessKey=$(echo "${secCredJSON}" | grep 'SecretAccessKey' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
   STSToken=$(echo "${secCredJSON}" | grep 'Token' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
