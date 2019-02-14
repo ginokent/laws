@@ -15,7 +15,7 @@ if ! { echo "$-" | grep -q i; }; then
 set -e
 
 # Global variables
-LAWS_VERSION='0.2.2'
+LAWS_VERSION='0.2.3'
 LAWS_PROGRAM_NAME="$(basename -- "$0")"
 
 # When EXIT, clean up temporary files.
@@ -114,17 +114,21 @@ laws s3 cp /path/to/file s3://your-bucket/path/to/file
 laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
 ```
 
-#### completion
-Tab Completion.
+#### Tab Completion
+If you `source` laws command, you can use tab completion.
 
 ```
-. /path/to/laws
+source /usr/local/bin/laws
+
+laws <TAB><TAB>
 ```
 
-if laws command is in $PATH: 
+If laws command is in $PATH, you can do as follows: 
 
 ```
-. $(command -v laws)
+source $(command -v laws)
+
+laws <TAB><TAB>
 ```
 
 
@@ -624,18 +628,18 @@ PrintAWSRegion() { (
   # 3. try to get region from AWS meta-data
   if ! { curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//'; }; then
     PrintStderrLog E "$(cat <<'ERROR'
+AWS Region is not specified.
 
-PrintAWSRegion(): Not specified AWS Region
 Follow the steps below to register AWS region:
 
-1. Save config as: ~/.aws/config
+- Save config as: ~/.aws/config
 
     [default]
     region = ap-northeast-1
 
  ** OR **
 
-1. Set environment variables:
+- Set environment variables:
 
     $ export AWS_REGION=ap-northeast-1
 
@@ -726,7 +730,7 @@ SetAWSAccessKey() {
   fi
 
   # 2. try to get credentials from `~/.aws/config` and `~/.aws/credentials`
-  if { grep -q "[^#]*${AWS_PROFILE:-default}" ~/.aws/credentials; }; then
+  if [ -r ~/.aws/credentials ] && { grep -q "[^#]*${AWS_PROFILE:-default}" ~/.aws/credentials; }; then
     INI_aws_access_key_id='' INI_aws_secret_access_key=''
     eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
     AWSAccessKeyId="${INI_aws_access_key_id}" AWSSecretAccessKey="${INI_aws_secret_access_key}"
@@ -750,11 +754,11 @@ SetAWSAccessKey() {
 
   # PrintStderrLog and EXIT abnormally immediately
   PrintStderrLog E "$(cat <<'ERROR'
+Credentials not found.
 
-SetAWSAccessKey(): Failed to connect http://169.254.169.254/
 Follow the steps below to register your credentials:
 
-1. Save credentials file as: ~/.aws/credentials
+- Save credentials file as: ~/.aws/credentials
 
     [default]
     aws_access_key_id = AKIA****************
@@ -762,7 +766,7 @@ Follow the steps below to register your credentials:
 
  ** OR **
 
-1. Set environment variables:
+- Set environment variables:
 
     $ export AWS_ACCESS_KEY_ID=AKIA****************
     $ export AWS_SECRET_ACCESS_KEY=****************************************
@@ -1347,6 +1351,12 @@ LawsS3Cp() {
 #   1 failure
 ##
 LawsS3() {
+  # declare vars for methods
+  DateYMD=$(TZ=UTC date +%Y%m%d)
+  DateISO8601=$(TZ=UTC date +%Y%m%dT%H%M%SZ)
+  AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
+  SetAWSAccessKey
+
   # check sub commands
   case "$1" in
     subcommands)
@@ -1408,12 +1418,6 @@ main() {
     echo "${LAWS_PROGRAM_NAME} ${LAWS_VERSION}"
     return 0
   fi
-
-  # declare vars for methods
-  DateYMD=$(TZ=UTC date +%Y%m%d)
-  DateISO8601=$(TZ=UTC date +%Y%m%dT%H%M%SZ)
-  AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
-  SetAWSAccessKey
 
   # check sub commands
   case "$1" in
