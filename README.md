@@ -64,17 +64,21 @@ laws s3 cp /path/to/file s3://your-bucket/path/to/file
 laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
 ```
 
-#### completion
-Tab Completion.
+#### Tab Completion
+If you `source` laws command, you can use tab completion.
 
 ```
-. /path/to/laws
+source /usr/local/bin/laws
+
+laws <TAB><TAB>
 ```
 
-if laws command is in $PATH: 
+If laws command is in $PATH, you can do as follows: 
 
 ```
-. $(command -v laws)
+source $(command -v laws)
+
+laws <TAB><TAB>
 ```
 
 
