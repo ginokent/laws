@@ -15,7 +15,7 @@ if ! { echo "$-" | grep -q i; }; then
 set -e
 
 # Global variables
-LAWS_VERSION='0.2.3'
+LAWS_VERSION='0.3.1'
 LAWS_PROGRAM_NAME="$(basename -- "$0")"
 
 # When EXIT, clean up temporary files.
@@ -30,6 +30,24 @@ trap '{
     rm -f ${tmpFileForStdinToS3}
   fi
 }' EXIT
+
+##
+# common
+##
+PrintStderr() {
+  echo "$*" | sed "s|$HOME|\$HOME|g" 1>&2
+}
+
+CheckDependency() {
+  code=0
+  for cmd in "$@"; do
+    if ! command -v -- "${cmd}" 1>/dev/null; then
+      PrintStderr "ERROR: \"${cmd}\" not found in \$PATH"
+      code=$((code+1))
+    fi
+  done
+  [ "${code}" -eq 0 ] || exit 1
+}
 
 ##
 # Output README
@@ -289,32 +307,6 @@ ContainHelpOption() { (
 ##
 ContainS3Scheme() { (
   ContainRegex '^s3://' "$*"
-)}
-
-##
-# Check existing dependency commands in PATH
-# RequiredFunctionsAndVariables:
-#   no
-# Arguments:
-#   $@ dependent commands
-# Stdin:
-#   no
-# Stdout:
-#   no
-# Stderr:
-#   no
-# Return:
-#   0 commands found in PATH, dependency OK
-#   1 commands NOT found in PATH, dependency NG, EXIT immediately
-##
-CheckDependency() { (
-  for cmd in "$@"; do
-    if ! { command -v -- "${cmd}" >/dev/null; }; then
-      PrintStderrLog E "CheckDependency(): \"${cmd}\" not found in PATH=\"${PATH}\""
-      # If command not found in PATH, it terminates abnormally immediately.
-      exit 1
-    fi
-  done
 )}
 
 ##
@@ -1331,121 +1323,87 @@ LawsS3Cp() {
   return 1
 }
 
-##
-# laws s3
-# RequiredFunctionsAndVariables:
-#   LawsS3Ls (depend)
-#   LawsS3Cat (depend)
-#   LawsS3Cp (depend)
-# Arguments:
-#   $1 sub command
-#   $2~ sub command's arguments
-# Stdin:
-#   no
-# Stdout:
-#   output
-# Stderr:
-#   log
-# Return:
-#   0 success
-#   1 failure
-##
-LawsS3() {
-  # declare vars for methods
-  DateYMD=$(TZ=UTC date +%Y%m%d)
-  DateISO8601=$(TZ=UTC date +%Y%m%dT%H%M%SZ)
-  AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
-  SetAWSAccessKey
 
-  # check sub commands
-  case "$1" in
-    subcmds)
-      echo "ls list-recursive cat cp"
-      return 0
-      ;;
-    ls)
-      shift
-      Recursive='false'
-      LawsS3Ls "$@"
-      ;;
-    list-recursive)
-      shift
-      Recursive='true'
-      LawsS3Ls "$@"
-      ;;
-    cat)
-      shift
-      LawsS3Cat "$@"
-      ;;
-    cp)
-      shift
-      LawsS3Cp "$@"
-      ;;
-    *)
-      PrintStderrReadMe
-      exit 0
-      ;;
-  esac
-}
 
 ##
-# laws
-# RequiredFunctionsAndVariables:
-#   LawsS3 (depend)
-#   SetAWSAccessKey (depend)
-#   LAWS_PROGRAM_NAME (required)
-#   LAWS_VERSION (required)
-# Arguments:
-#   $1 sub command
-#   $2 sub command
-#   $3~ sub command's arguments
-# Stdin:
-#   no
-# Stdout:
-#   output
-# Stderr:
-#   log
-# Return:
-#   0 success
-#   1 failure
+# main
 ##
-LawsMain() {
+LawsMain() {  ## main start DO NOT REMOVE ##
   # check dependency
   CheckDependency '[' cat curl date grep od openssl printf sed tr
 
-  # display version
-  if ContainRegex '[[:blank:]]-V|[[:blank:]]-*version' " $*"; then
-    echo "${LAWS_PROGRAM_NAME} ${LAWS_VERSION}"
-    return 0
-  fi
+  # if args contain "-h" or "--help" or "help" or ..., display README
+  if ContainHelpOption "$*"; then PrintStderrReadMe; exit 0; fi
+
+  sub_command="$1"
+  sub2_command="$2"
+
+  if [ "$2" ]; then shift || true; fi
+  if [ "$1" ]; then shift || true; fi
+
+  # shellcheck disable=SC2034
+  conoha_main_method_content=$(
+    conoha_main_tail=$(tail -n +"$(grep -n "## main start DO NOT REMOVE ##$" "$0" | cut -d: -f1)" "$0")
+    echo "${conoha_main_tail}" | head -n +"$(echo "${conoha_main_tail}" | grep -n "## main end DO NOT REMOVE ##$" | cut -d: -f1)"
+  )
+
+  # shellcheck disable=1004,SC2016
+  get_sub_cmds='''
+    printf "%s" "${conoha_main_method_content}" \
+      | grep -Eo "^ {4}[^ ]+ *)" \
+      | grep -Ev "^ {4}(subcmds|\*|completion)" \
+      | tr -d "\n" \
+      | sed "s/ *//g; s/)/ /g; s/ *$//g"
+  '''
+
+  # shellcheck disable=1004,SC2016
+  get_sub2_cmds='''
+    printf "%s" "${conoha_main_method_content}" \
+      | grep -Eo "^( {4}| {8})[^ ]+ *)" \
+      | grep -Ev "^ {4}(subcmds|\*)|^ {8}subcmds" \
+      | tr -d "\n" \
+      | sed "s/.* \(${sub_command} *)[^\*]*\).*/\1/g; s/^${sub_command} *)//g; s/ *//g; s/)/ /g; s/ *$//g"
+  '''
 
   # check sub commands
-  case "$1" in
+  case "${sub_command}" in
     subcmds)
-      echo "s3"
-      return 0
-      ;;
+      # grep '^    [^ ]*)[ ]*$' ./conoha | grep -v subcmds | tr '\n' ' ' | sed 's/[ \*]//g; s/)/ /g; s/|/ /;'
+      #echo "configure flavor image port servers sg securitygroup subnet tools"
+      eval "${get_sub_cmds}" ;;
+    completion)
+      case "${sub2_command}" in
+        subcmds) true ;;
+        *      ) echo ". $(cd "$(dirname "$0")"; pwd)/$(basename -- "$0")" ;;
+      esac ;;
+    help)
+      case "${sub2_command}" in
+        subcmds) true ;;
+        *      ) PrintStderrReadMe ;;
+      esac ;;
     s3)
-      shift
-      LawsS3 "$@"
-      ;;
+      # declare vars for methods
+      DateYMD=$(TZ=UTC date +%Y%m%d)
+      DateISO8601=$(TZ=UTC date +%Y%m%dT%H%M%SZ)
+      AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
+      SetAWSAccessKey
+      case "${sub2_command}" in
+        subcmds     ) eval "${get_sub2_cmds}" ;;
+        cat         ) LawsS3Cat "$@" ;;
+        cp          ) LawsS3Cp "$@" ;;
+        ls          ) Recursive='false'; LawsS3Ls "$@" ;;
+        ls-recursive) Recursive='true';  LawsS3Ls "$@" ;;
+        *                  ) PrintStderr "allowed value: $(bash "$0" "${sub_command}" subcmds | sed 's/^/ /; s/ /\\n  - /g')"; return 1 ;;
+      esac ;;
+    version)
+      case "${sub2_command}" in
+        subcmds) true ;;
+        *      ) echo "${LAWS_PROGRAM_NAME} ${LAWS_VERSION}" ;;
+      esac ;;
     *)
-      PrintStderrReadMe
-      return 0
-      ;;
+      PrintStderr "allowed value: $(bash "$0" subcmds | sed 's/^/ /; s/ /\\n  - /g')"; return 1 ;;
   esac
-}
-
-##
-# Execute the main function.
-# It is executed first in this script.
-#
-# $@ ... Pass all the arguments of the laws command.
-#
-# like:
-#   LawsMain s3 ls s3://mybucket/path/tp/file
-##
-LawsMain "$@"
+} && LawsMain "$@"  ## main end DO NOT REMOVE ##
 
 # -- Non Interactive ----------------
 else
