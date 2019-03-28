@@ -1359,7 +1359,7 @@ LawsS3() {
 
   # check sub commands
   case "$1" in
-    subcommands)
+    subcmds)
       echo "ls list-recursive cat cp"
       return 0
       ;;
@@ -1421,7 +1421,7 @@ main() {
 
   # check sub commands
   case "$1" in
-    subcommands)
+    subcmds)
       echo "s3"
       return 0
       ;;
@@ -1453,12 +1453,11 @@ else
 
 
 ##
-# Interactive: laws as bash-completion
-# ref: https://blog.cybozu.io/entry/2016/09/26/080000
+# laws command as bash-completion
 #
-# The following functions are for bash-completion.
-# When executing as a command,
-# the following functions are not defined nor executed.
+# The following function is for bash-completion.
+# When executing script as a command,
+# the following function is not defined nor executed.
 #
 # shellcheck disable=SC2016,SC2034,SC2039
 ##
@@ -1466,10 +1465,10 @@ __complete_laws() {
   local cur prev cword
   _get_comp_words_by_ref -n : cur prev cword
   if [ "${cword}" -eq 1 ]; then
-    eval 'COMPREPLY=( $(compgen -W "'"$(laws subcommands)"'" -- "${cur}") )'
+    eval 'COMPREPLY=( $(compgen -W "'"$(laws subcmds)"'" -- "${cur}") )'
   elif [ "${cword}" -eq 2 ]; then
-    eval 'COMPREPLY=( $(compgen -W "'"$(laws "${prev}" subcommands)"'" -- "${cur}") )'
-  elif { echo "${COMP_WORDS[@]}" | grep -Eq "^laws s3 +($(laws s3 subcommands | sed 's/ /|/g'))"; }; then  # Amazon S3
+    eval 'COMPREPLY=( $(compgen -W "'"$(laws "${prev}" subcmds)"'" -- "${cur}") )'
+  elif { echo "${COMP_WORDS[@]}" | grep -Eq "^laws s3 +($(laws s3 subcmds | sed 's/ /|/g'))"; }; then  # Amazon S3
     if [ -z "${__laws_s3_ls_completion_pre_exe_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_pre_exe_time)) -gt 30 ]; then
       __laws_s3_ls_completion_pre_exe_time=$(date +%s)
       __laws_s3_ls_completion_pre_exe="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
@@ -1483,7 +1482,7 @@ __complete_laws() {
   #__ltrim_colon_completions "$cur"
 }
 # shellcheck disable=SC2039
-[ -z "$(command -v complete)" ] || complete -F __complete_laws laws
+{ ! command -v complete 1>/dev/null; } || complete -F __complete_laws laws
 
 # -- Interactive ----------------
 fi
