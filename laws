@@ -1409,7 +1409,7 @@ LawsS3() {
 #   0 success
 #   1 failure
 ##
-main() {
+LawsMain() {
   # check dependency
   CheckDependency '[' cat curl date grep od openssl printf sed tr
 
@@ -1443,9 +1443,9 @@ main() {
 # $@ ... Pass all the arguments of the laws command.
 #
 # like:
-#   main s3 ls s3://mybucket/path/tp/file
+#   LawsMain s3 ls s3://mybucket/path/tp/file
 ##
-main "$@"
+LawsMain "$@"
 
 # -- Non Interactive ----------------
 else
