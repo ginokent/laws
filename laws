@@ -608,6 +608,7 @@ PrintAWSRegion() { (
   # 2. try to get region from config file: ~/.aws/config
   if { grep -q "[^#]*${AWS_PROFILE:-default}" ~/.aws/config; }; then
     INI_region=''
+    #                       "\(profile \)*default" ... "profile defalut" or "default"
     eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/config)"
     if [ "${INI_region}" ]; then
       echo "${INI_region}"
@@ -724,6 +725,7 @@ SetAWSAccessKey() {
   # 2. try to get credentials from `~/.aws/config` and `~/.aws/credentials`
   if [ -r ~/.aws/credentials ] && { grep -q "[^#]*${AWS_PROFILE:-default}" ~/.aws/credentials; }; then
     INI_aws_access_key_id='' INI_aws_secret_access_key=''
+    #                       "\(profile \)*default" ... "profile defalut" or "default"
     eval "$(ParseINIforEval "\(profile \)*${AWS_PROFILE:-default}" ~/.aws/credentials)"
     AWSAccessKeyId="${INI_aws_access_key_id}" AWSSecretAccessKey="${INI_aws_secret_access_key}"
     # If "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally
@@ -1344,7 +1346,7 @@ LawsMain() {  ## main start DO NOT REMOVE ##
   # shellcheck disable=SC2034
   conoha_main_method_content=$(
     conoha_main_tail=$(tail -n +"$(grep -n "## main start DO NOT REMOVE ##$" "$0" | cut -d: -f1)" "$0")
-    echo "${conoha_main_tail}" | head -n +"$(echo "${conoha_main_tail}" | grep -n "## main end DO NOT REMOVE ##$" | cut -d: -f1)"
+    echo "${conoha_main_tail}" | head -n "$(echo "${conoha_main_tail}" | grep -n "## main end DO NOT REMOVE ##$" | cut -d: -f1)"
   )
 
   # shellcheck disable=1004,SC2016
@@ -1387,13 +1389,14 @@ LawsMain() {  ## main start DO NOT REMOVE ##
       DateISO8601=$(TZ=UTC date +%Y%m%dT%H%M%SZ)
       AWSAPIEndpoint=$(PrintAWSAPIEndpoint s3 "$(PrintAWSRegion)")
       SetAWSAccessKey
+      # shellcheck disable=SC2059
       case "${sub2_command}" in
         subcmds     ) eval "${get_sub2_cmds}" ;;
         cat         ) LawsS3Cat "$@" ;;
         cp          ) LawsS3Cp "$@" ;;
         ls          ) Recursive='false'; LawsS3Ls "$@" ;;
         ls-recursive) Recursive='true';  LawsS3Ls "$@" ;;
-        *                  ) PrintStderr "allowed value: $(bash "$0" "${sub_command}" subcmds | sed 's/^/ /; s/ /\\n  - /g')"; return 1 ;;
+        *           ) PrintStderr "allowed value: $(printf "$(sh "$0" "${sub_command}" subcmds | sed 's/^/ /; s/ /\\n  - /g')")"; return 1 ;;
       esac ;;
     version)
       case "${sub2_command}" in
@@ -1401,7 +1404,8 @@ LawsMain() {  ## main start DO NOT REMOVE ##
         *      ) echo "${LAWS_PROGRAM_NAME} ${LAWS_VERSION}" ;;
       esac ;;
     *)
-      PrintStderr "allowed value: $(bash "$0" subcmds | sed 's/^/ /; s/ /\\n  - /g')"; return 1 ;;
+      # shellcheck disable=SC2059
+      PrintStderr "allowed value: $(printf "$(sh "$0" subcmds | sed 's/^/ /; s/ /\\n  - /g')")"; return 1 ;;
   esac
 } && LawsMain "$@"  ## main end DO NOT REMOVE ##
 
