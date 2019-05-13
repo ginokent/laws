@@ -1424,18 +1424,22 @@ else
 # shellcheck disable=SC2016,SC2034,SC2039
 ##
 __complete_laws() {
-  local cur prev cword
-  _get_comp_words_by_ref -n : cur prev cword
-  if [ "${cword}" -eq 1 ]; then
-    eval 'COMPREPLY=( $(compgen -W "'"$(laws subcmds)"'" -- "${cur}") )'
-  elif [ "${cword}" -eq 2 ]; then
-    eval 'COMPREPLY=( $(compgen -W "'"$(laws "${prev}" subcmds)"'" -- "${cur}") )'
-  elif { echo "${COMP_WORDS[@]}" | grep -Eq "^laws s3 +($(laws s3 subcmds | sed 's/ /|/g'))"; }; then  # Amazon S3
-    if [ -z "${__laws_s3_ls_completion_pre_exe_time}" ] || [ $(($(date +%s)-__laws_s3_ls_completion_pre_exe_time)) -gt 30 ]; then
-      __laws_s3_ls_completion_pre_exe_time=$(date +%s)
-      __laws_s3_ls_completion_pre_exe="$(laws s3 ls | sed 's/^[^[:blank:]]*[[:blank:]]//' | tr '\n' ' ')"
+  if [ "${COMP_CWORD}" -eq 1 ]; then
+    eval 'COMPREPLY=( $(compgen -W "'"$(laws subcmds)"'" -- "${COMP_WORDS[${COMP_CWORD}]}") )'
+  elif [ "${COMP_CWORD}" -eq 2 ]; then
+    eval 'COMPREPLY=( $(compgen -W "'"$(laws "${COMP_WORDS[$((COMP_CWORD-1))]}" subcmds)"'" -- "${COMP_WORDS[${COMP_CWORD}]}") )'
+  elif { echo "${COMP_WORDS[@]}" | grep -Eq ".*laws s3 +($(laws s3 subcmds | sed 's/ /|/g'))"; }; then  # Amazon S3
+    if echo "${COMP_WORDS[${COMP_CWORD}]}" | grep -Eq 's3://[^/]+/.*/$'; then # s3://bucket/path/to/
+      __laws_s3_ls_completion_pre_exe="$(laws s3 ls "${COMP_WORDS[${COMP_CWORD}]}" | sed 's|^[[:blank:]]*[^[:blank:]]*[[:blank:]]*|'"${COMP_WORDS[${COMP_CWORD}]}"'|' | tr '\n' ' ')"
+    elif echo "${COMP_WORDS[${COMP_CWORD}]}" | grep -Eq 's3://[^/]+/.*[^/]$'; then # s3://bucket/path/to
+      __laws_s3_ls_completion_pre_exe="$(laws s3 ls "${COMP_WORDS[${COMP_CWORD}]}" | sed 's|^[[:blank:]]*[^[:blank:]]*[[:blank:]]*|'"$(dirname "${COMP_WORDS[${COMP_CWORD}]}")/"'|' | tr '\n' ' ')"
+    elif echo "${COMP_WORDS[${COMP_CWORD}]}" | grep -Eq 's3://[^/]+/$'; then # s3://bucket/
+      __laws_s3_ls_completion_pre_exe="$(laws s3 ls "${COMP_WORDS[${COMP_CWORD}]}" | sed 's|^[[:blank:]]*[^[:blank:]]*[[:blank:]]*|'"${COMP_WORDS[${COMP_CWORD}]}"'|' | tr '\n' ' ')"
+    else
+      __laws_s3_ls_completion_pre_exe="$(laws s3 ls | sed 's|^[^[:blank:]]*[[:blank:]]||' | tr '\n' ' ')"
     fi
-    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_pre_exe} $(ls -aCdF "${cur}"* 2>/dev/null) -" -- "${cur}") )'
+    compopt -o nospace
+    eval 'COMPREPLY=( $(compgen -W "${__laws_s3_ls_completion_pre_exe} $(ls -aCdF "${COMP_WORDS[${COMP_CWORD}]}"* 2>/dev/null) -" -- "${COMP_WORDS[${COMP_CWORD}]}") )'
   fi
   # COMP_WORDBREAKS 対応
   # Bash completion for Maven escapes colon - https://stackoverflow.com/questions/2805412/bash-completion-for-maven-escapes-colon/12495727
