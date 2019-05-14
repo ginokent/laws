@@ -1346,6 +1346,7 @@ LawsMain() {  ## main start DO NOT REMOVE ##
   # shellcheck disable=SC2034
   conoha_main_method_content=$(
     conoha_main_tail=$(tail -n +"$(grep -n "## main start DO NOT REMOVE ##$" "$0" | cut -d: -f1)" "$0")
+    #                          ~ <= DO NOT REMOVE '+' !!!
     echo "${conoha_main_tail}" | head -n "$(echo "${conoha_main_tail}" | grep -n "## main end DO NOT REMOVE ##$" | cut -d: -f1)"
   )
 
