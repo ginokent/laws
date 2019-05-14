@@ -285,8 +285,8 @@ ContainRegex() { (
 #   1 arguments NOT contain help option
 ##
 ContainHelpOption() { (
-  #             "-h" "--help"          |"a -h b" "a --help b" |"help"
-  ContainRegex '^[[:blank:]]*\-+h(elp)?|[[:blank:]]+\-+h(elp)?|^[[:blank:]]*help[[:blank:]]*$' "$*"
+  #             "-h" "--help" |"argX (-h|--help) argZ"| "help"
+  ContainRegex '(^[[:blank:]]*|[[:blank:]]+)\-+h(elp)?|^[[:blank:]]*help[[:blank:]]*$' "$*"
 )}
 
 ##
