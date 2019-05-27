@@ -9,7 +9,7 @@ TAG_LATEST_VERSION=$(git tag | grep -E "[0-9]+\.[0-9]+\.[0-9]+" | sort -V | tail
 BIN_NAME=laws
 VERSION=$("$(git rev-parse --show-toplevel | sed 's@/$@@')/${BIN_NAME}" version | sed s/[^[:blank:]]*[[:blank:]]*//)
 
-printf "\e[1;32m%s\e[0m\n" "$(LANG=C date) [INFO]  -- release ${VERSION} ----------------"
+printf "\e[1m%s\e[0m\n" "$(LANG=C date) [INFO]  -- release ${VERSION} ----------------"
 if [ "${VERSION}" = "${TAG_LATEST_VERSION}" ]; then
   printf "\e[1;33m%s\e[0m\n" "$(LANG=C date) [WARN]  == ${VERSION} already exist ================"
 else
