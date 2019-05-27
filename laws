@@ -15,7 +15,7 @@ if ! { echo "$-" | grep -q i; }; then
 set -e
 
 # Global variables
-LAWS_VERSION='0.3.3'
+LAWS_VERSION='0.3.4'
 LAWS_PROGRAM_NAME="$(basename -- "$0")"
 
 # When EXIT, clean up temporary files.
