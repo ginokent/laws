@@ -1037,7 +1037,9 @@ PrintS3ListObjects() { (
   # declare vars for methods
   HTTPMethod='GET'
   HashedPayload="$(ConvertSHA256Hash '')"
-  RequestPath="/$(PrintExtractedHTTPHost "$(PrintSchemeSlashSlashRemoved "${s3Path}")")"
+  # shellcheck disable=SC2030
+  AWSAPIEndpoint="${s3Path:+"$(PrintExtractedHTTPHost "${s3Path}")."}${AWSAPIEndpoint}"
+  RequestPath="/"
   Prefix=$(URIEncode "$(PrintExtractedHTTPPath "$1")")
   { [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; } && MaxKeys=1000
 
@@ -1113,12 +1115,15 @@ PrintS3ListObjects() { (
 ##
 PrintS3GetObject() { (
   # vars common
+  # shellcheck disable=SC2030
   s3Path="$(PrintSchemeSlashSlashRemoved "${1:?"$(PrintStderrLog F "PrintS3GetObject(): requires \"s3Path\" as \$1")"}")"
 
   # vars for methods
   HTTPMethod='GET'
   HashedPayload="$(ConvertSHA256Hash '')"
-  RequestPath="/$(URIEncodeWithoutSlash "$(PrintSchemeSlashSlashRemoved "${s3Path}")")"
+  # shellcheck disable=SC2030,SC2031
+  AWSAPIEndpoint="${s3Path:+"$(PrintExtractedHTTPHost "${s3Path}")."}${AWSAPIEndpoint}"
+  RequestPath="/$(URIEncodeWithoutSlash "$(PrintExtractedHTTPPath "${s3Path}")")"
   CanonicalQueryString=''
 
   # run
@@ -1247,7 +1252,9 @@ LawsS3Cp() {
     # vars for cURL
     HTTPMethod='PUT'
     HashedPayload="$(openssl dgst -sha256 "${SourcePath}" | sed 's/^.*[[:blank:]]//')"
-    RequestPath="/$(URIEncodeWithoutSlash "$(PrintSchemeSlashSlashRemoved "${destinationPath}")")"
+    # shellcheck disable=SC2031
+    AWSAPIEndpoint="${destinationPath:+"$(PrintExtractedHTTPHost "${destinationPath}")."}${AWSAPIEndpoint}"
+    RequestPath="/$(URIEncodeWithoutSlash "$(PrintExtractedHTTPPath "${destinationPath}")")"
     CanonicalQueryString=''
 
     # Call API
