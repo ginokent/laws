@@ -1325,25 +1325,27 @@ LawsMain() {  ## main start DO NOT REMOVE ##
   if [ "$2" ]; then shift || true; fi
   if [ "$1" ]; then shift || true; fi
 
-  # shellcheck disable=SC2034
-  conoha_main_method_content=$(
-    conoha_main_tail=$(tail -n +"$(grep -n "## main start DO NOT REMOVE ##$" "$0" | cut -d: -f1)" "$0")
-    #                          ~ <= DO NOT REMOVE '+' !!!
-    echo "${conoha_main_tail}" | head -n "$(echo "${conoha_main_tail}" | grep -n "## main end DO NOT REMOVE ##$" | cut -d: -f1)"
-  )
+  # shellcheck disable=SC2016
+  get_main_method_content='''
+    main_method_content=$(
+      main_tail=$(tail -n +"$(grep -n "## main start DO NOT REMOVE ##$" "$0" | cut -d: -f1)" "$0")
+      #                          ~ <= DO NOT REMOVE "+" !!!
+      echo "${main_tail}" | head -n "$(echo "${main_tail}" | grep -n "## main end DO NOT REMOVE ##$" | cut -d: -f1)"
+    )
+  '''
 
-  # shellcheck disable=1004,SC2016
+  # shellcheck disable=SC1004,SC2016
   get_sub_cmds='''
-    printf "%s" "${conoha_main_method_content}" \
+    printf "%s" "${main_method_content}" \
       | grep -Eo "^ {4}[^ ]+ *)" \
       | grep -Ev "^ {4}(subcmds|\*|completion)" \
       | tr -d "\n" \
       | sed "s/ *//g; s/)/ /g; s/ *$//g"
   '''
 
-  # shellcheck disable=1004,SC2016
+  # shellcheck disable=SC1004,SC2016
   get_sub2_cmds='''
-    printf "%s" "${conoha_main_method_content}" \
+    printf "%s" "${main_method_content}" \
       | grep -Eo "^( {4}| {8})[^ ]+ *)" \
       | grep -Ev "^ {4}(subcmds|\*)|^ {8}subcmds" \
       | tr -d "\n" \
@@ -1355,7 +1357,7 @@ LawsMain() {  ## main start DO NOT REMOVE ##
     subcmds)
       # grep '^    [^ ]*)[ ]*$' ./conoha | grep -v subcmds | tr '\n' ' ' | sed 's/[ \*]//g; s/)/ /g; s/|/ /;'
       #echo "configure flavor image port servers sg securitygroup subnet tools"
-      eval "${get_sub_cmds}" ;;
+      eval "${get_main_method_content}"; eval "${get_sub_cmds}" ;;
     completion)
       case "${sub2_command}" in
         subcmds) true ;;
@@ -1374,7 +1376,7 @@ LawsMain() {  ## main start DO NOT REMOVE ##
       SetAWSAccessKey
       # shellcheck disable=SC2059
       case "${sub2_command}" in
-        subcmds     ) eval "${get_sub2_cmds}" ;;
+        subcmds     ) eval "${get_main_method_content}"; eval "${get_sub2_cmds}" ;;
         cat         ) LawsS3Cat "$@" ;;
         cp          ) LawsS3Cp "$@" ;;
         ls          ) Recursive='false'; LawsS3Ls "$@" ;;
