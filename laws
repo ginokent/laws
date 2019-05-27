@@ -65,7 +65,7 @@ CheckDependency() {
 #   0 always
 ##
 PrintStderrReadMe() { (
-cat <<'README' >/dev/stderr
+cat <<'README' 1>&2
 
 laws
 ====
@@ -199,7 +199,7 @@ PrintStderrLog() { (
   esac
 
   # output log message to stderr
-  printf '%s\n' "${logMessages}" | awk '{print "'"$(PrintDateUTC) ${LAWS_PROGRAM_NAME}[$$]: ${tag}"' "$0}' >/dev/stderr
+  printf '%s\n' "${logMessages}" | awk '{print "'"$(PrintDateUTC) ${LAWS_PROGRAM_NAME}[$$]: ${tag}"' "$0}' 1>&2
 )}
 
 ##
@@ -950,12 +950,11 @@ CallAPIS3GET() { (
 #   PrintHTTPHeader (depend)
 #   PrintAuthorization (depend)
 #   HTTPMethod (required)
-#   SourcePath (required)
 #   AWSAPIEndpoint (required)
 #   RequestPath (required)
 #   CanonicalQueryString (option)
 # Arguments:
-#   no
+#   $1: sourcePath
 # Stdin:
 #   no
 # Stdout:
@@ -967,10 +966,11 @@ CallAPIS3GET() { (
 #   1 failure
 ##
 CallAPIS3PUT() { (
+  sourcePath=${1:?"$(PrintStderrLog F "CallAPIS3PUT(): requires \"sourcePath\" as \$1")"}
   curl -ksS -X "${HTTPMethod}" \
     -H "$(PrintHTTPHeader)" \
     -H "Authorization: $(PrintAuthorization)" \
-    -T "${SourcePath}" \
+    -T "${sourcePath}" \
     "https://${AWSAPIEndpoint}${RequestPath}${CanonicalQueryString:+"?${CanonicalQueryString}"}" | tee /dev/stderr
 )}
 
@@ -1002,7 +1002,7 @@ PrintS3ListBuckets() { (
 
   # if err != nil
   if ContainRegex '</Error>' "${response}"; then
-    echo "${response}" >/dev/stderr
+    echo "${response}" 1>&2
     return 1
   fi
 
@@ -1093,7 +1093,7 @@ PrintS3ListObjects() { (
     return 0
   fi
 
-  echo "${response}" > /dev/stderr
+  echo "${response}" 1>&2
   return 1
 )}
 
@@ -1140,7 +1140,7 @@ PrintS3GetObject() { (
     fi
 
     # print error to stderr
-    echo "${response}" >/dev/stderr
+    echo "${response}" 1>&2
     return 1
   fi
 
@@ -1228,17 +1228,22 @@ LawsS3Cat() { (
 ##
 LawsS3Cp() {
   # if less than 2 args OR args contain "-h" or "--help" or "help" or ..., display README
-  if [ "$#" != 2 ] || ContainHelpOption "$*"; then PrintStderrReadMe; exit 0; fi
+  if [ "$#" != 2 ] || ! ContainRegex " *s3://" "$*" ; then
+    PrintStderr 'usage: laws s3 cp <LocalPath> <S3Uri> or <S3Uri> <LocalPath> or <S3Uri> <S3Uri>'
+    exit 0
+  fi
 
+  ##
   # vars common
-  SourcePath="${1:?"$(PrintStderrLog F "LawsS3Cp(): requires \"SourcePath\" as \$1")"}"
+  ##
+  sourcePath="${1:?"$(PrintStderrLog F "LawsS3Cp(): requires \"sourcePath\" as \$1")"}"
   destinationPath="${2:?"$(PrintStderrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}"
 
   # stdin
-  if [ "${SourcePath}" = - ]; then
+  if [ "${sourcePath}" = - ]; then
     tmpFileForStdinToS3=$(mktemp)
     cat /dev/stdin > "${tmpFileForStdinToS3}"
-    SourcePath="${tmpFileForStdinToS3}"
+    sourcePath="${tmpFileForStdinToS3}"
   fi
 
   # stdout
@@ -1247,19 +1252,19 @@ LawsS3Cp() {
   fi
 
   # copy local to s3 (PUT)
-  if [ -e "${SourcePath}" ] && { echo "${destinationPath}" | grep -q '^s3://'; }; then
+  if [ -e "${sourcePath}" ] && { echo "${destinationPath}" | grep -q '^s3://'; }; then
 
     # vars for cURL
     HTTPMethod='PUT'
-    HashedPayload="$(openssl dgst -sha256 "${SourcePath}" | sed 's/^.*[[:blank:]]//')"
+    HashedPayload="$(openssl dgst -sha256 "${sourcePath}" | sed 's/^.*[[:blank:]]//')"
     # shellcheck disable=SC2031
     AWSAPIEndpoint="${destinationPath:+"$(PrintExtractedHTTPHost "${destinationPath}")."}${AWSAPIEndpoint}"
     RequestPath="/$(URIEncodeWithoutSlash "$(PrintExtractedHTTPPath "${destinationPath}")")"
     CanonicalQueryString=''
 
     # Call API
-    response=$(CallAPIS3PUT)
-    printf '%s' "${response}" > /dev/stderr
+    response=$(CallAPIS3PUT "${sourcePath}")
+    printf '%s' "${response}" 1>&2
 
     # if err != nil
     if ContainRegex '</Error>' "${response}"; then
@@ -1269,15 +1274,15 @@ LawsS3Cp() {
     return 0
 
   # copy s3 to s3 (GET and PUT)
-  elif { echo "${SourcePath} ${destinationPath}" | grep -q '^s3://.* s3://'; }; then
+  elif { echo "${sourcePath} ${destinationPath}" | grep -q '^s3://.* s3://'; }; then
     # GET
     tmpFileForS3ToS3=$(mktemp)
-    LawsS3Cat "${SourcePath}" > "${tmpFileForS3ToS3}"
+    LawsS3Cat "${sourcePath}" > "${tmpFileForS3ToS3}"
 
     # PUT
-    #PrintStderrLog D "upload ${SourcePath} to ${destinationPath}"
+    #PrintStderrLog D "upload ${sourcePath} to ${destinationPath}"
     response=$(LawsS3Cp "${tmpFileForS3ToS3}" "${destinationPath}" 2>&1)
-    printf '%s' "${response}" > /dev/stderr
+    printf '%s' "${response}" 1>&2
 
     # If the tmp file can be uploaded, output the appropriate log.
     if ContainRegex '</Error>' "${response}"; then
@@ -1287,23 +1292,23 @@ LawsS3Cp() {
     return 0
 
   # copy s3 to local (GET)
-  elif { echo "${SourcePath}" | grep -q '^s3://'; }; then
+  elif { echo "${sourcePath}" | grep -q '^s3://'; }; then
 
     if [ -d "${destinationPath}" ]; then
-      #PrintStderrLog D "download ${SourcePath} to ${destinationPath}/$(basename -- "${SourcePath}")"
-      LawsS3Cat "${SourcePath}" > "${destinationPath}/$(basename -- "${SourcePath}")"
+      #PrintStderrLog D "download ${sourcePath} to ${destinationPath}/$(basename -- "${sourcePath}")"
+      LawsS3Cat "${sourcePath}" > "${destinationPath}/$(basename -- "${sourcePath}")"
       return $?
     elif [ ! -d "${destinationPath}" ] && [ -d "$(dirname "${destinationPath}")" ]; then
-      #PrintStderrLog D "download ${SourcePath} to ${destinationPath}"
-      LawsS3Cat "${SourcePath}" > "${destinationPath}"
+      #PrintStderrLog D "download ${sourcePath} to ${destinationPath}"
+      LawsS3Cat "${sourcePath}" > "${destinationPath}"
       return $?
     fi
 
-    PrintStderrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${SourcePath}\"")"
+    PrintStderrLog E "not exist destination parent directory: \"$(dirname "${destinationPath}")\" OR already exist directory: \"${destinationPath}/$(basename -- "${sourcePath}\"")"
     return 1
   fi
 
-  PrintStderrLog E "\"${SourcePath}\" and \"${destinationPath}\" not found or local files."
+  PrintStderrLog E "\"${sourcePath}\" and \"${destinationPath}\" not found or local files."
   return 1
 }
 
@@ -1329,7 +1334,7 @@ LawsMain() {  ## main start DO NOT REMOVE ##
   get_main_method_content='''
     main_method_content=$(
       main_tail=$(tail -n +"$(grep -n "## main start DO NOT REMOVE ##$" "$0" | cut -d: -f1)" "$0")
-      #                          ~ <= DO NOT REMOVE "+" !!!
+      #                   ~ <= DO NOT REMOVE "+" !!!
       echo "${main_tail}" | head -n "$(echo "${main_tail}" | grep -n "## main end DO NOT REMOVE ##$" | cut -d: -f1)"
     )
   '''
