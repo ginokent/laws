@@ -1,4 +1,4 @@
-SHELL := /bin/bash
+SHELL := $(shell command -v bash)
 GIT_ROOT_DIR := $(shell echo "`pwd`/`git rev-parse --show-cdup`")
 HOST := $(shell echo ${HOST})
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 [ "${MaxKeys}" ] || MaxKeys=50
 DIRECTORY="$(cd -- "$(dirname -- "$0")" && pwd -P)"
