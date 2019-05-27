@@ -9,16 +9,12 @@ Currently `laws` only supports **Amazon S3**.
 
 ## TL;DR
 
-```
-curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 ls
-```
+    $ curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 ls
 
 
 ## Install:
 
-```
-sudo curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws -o /usr/local/bin/laws && sudo chmod +x $_
-```
+    $ sudo curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws -o /usr/local/bin/laws && sudo chmod +x $_
 
 
 ## Usage:
@@ -28,58 +24,37 @@ When executing this script,
 - OR save `~/.aws/config` and `~/.aws/credentials`,
 - OR set the following environment variables:
 
-```
-export AWS_REGION=ap-northeast-1
-export AWS_ACCESS_KEY_ID=AKIA****************
-export AWS_SECRET_ACCESS_KEY=****************************************
-```
+    $ export AWS_REGION=ap-northeast-1
+    $ export AWS_ACCESS_KEY_ID=AKIA****************
+    $ export AWS_SECRET_ACCESS_KEY=****************************************
 
 #### `help`
 Display help.  
 
-```
-laws help
-```
+    $ laws help
 
 #### `s3 ls`
 List the contents on Amazon S3.  
 
-```
-laws s3 ls [<your-bucket>[<prefix>]]
-```
+    $ laws s3 ls [<your-bucket>[<prefix>]]
 
 #### `s3 cat`
 Get the contents of the file on Amazon S3.  
 
-```
-laws s3 cat s3://your-bucket/path/to/file ...
-```
+    $ laws s3 cat s3://your-bucket/path/to/file ...
 
 #### `s3 cp`
 Copy a file.  
 
-```
-laws s3 cp s3://your-bucket/path/to/file /path/to/file
-laws s3 cp /path/to/file s3://your-bucket/path/to/file
-laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
-```
+    $ laws s3 cp s3://your-bucket/path/to/file /path/to/file
+    $ laws s3 cp /path/to/file s3://your-bucket/path/to/file
+    $ laws s3 cp s3://your-bucket-b/path/to/file s3://your-bucket-a/path/to/file
 
 #### Tab Completion
-If you `source` laws command, you can use tab completion.
 
-```
-source /usr/local/bin/laws
-
-laws <TAB><TAB>
-```
-
-If laws command is in $PATH, you can do as follows: 
-
-```
-source $(command -v laws)
-
-laws <TAB><TAB>
-```
+    $ source /path/to/laws
+    $ laws <TAB><TAB>
+    help     s3       version
 
 
 ## Note:
