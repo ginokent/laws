@@ -965,7 +965,7 @@ CallAPIS3GET() { (
   curl -ksS -X "${HTTPMethod}" \
     -H "$(PrintCanonicalHeader)" \
     -H "Authorization: $(PrintAuthorization)" \
-    "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")"
+    "https://${AWSAPIEndpoint}${RequestPath}${CanonicalQueryString+"?${CanonicalQueryString}"}"
 )}
 
 ##
@@ -996,7 +996,7 @@ CallAPIS3PUT() { (
     -H "$(PrintHTTPHeader)" \
     -H "Authorization: $(PrintAuthorization)" \
     -T "${SourcePath}" \
-    "https://${AWSAPIEndpoint}${RequestPath}$([ -z "${CanonicalQueryString}" ] || echo "?${CanonicalQueryString}")" | tee /dev/stderr
+    "https://${AWSAPIEndpoint}${RequestPath}${CanonicalQueryString+"?${CanonicalQueryString}"}" | tee /dev/stderr
 )}
 
 ##
@@ -1067,10 +1067,10 @@ PrintS3ListObjects() { (
   { [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; } && MaxKeys=1000
 
   # CanonicalQueryString
-  CanonicalQueryString="$([ -z "${ContinuationToken}" ] || printf '%s' "continuation-token=${ContinuationToken}&")"
+  CanonicalQueryString="${ContinuationToken+"continuation-token=${ContinuationToken}&"}"
   CanonicalQueryString="${CanonicalQueryString}$([ "${Recursive}" = true ] || printf '%s' "delimiter=%2F&")"
   CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
-  CanonicalQueryString="${CanonicalQueryString}$([ -z "${Prefix}" ] || printf '%s' "&prefix=${Prefix}")"
+  CanonicalQueryString="${CanonicalQueryString}${Prefix+"&prefix=${Prefix}"}"
 
   # run
   response=$(CallAPIS3GET)
