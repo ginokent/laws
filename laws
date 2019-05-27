@@ -42,7 +42,7 @@ CheckDependency() {
   code=0
   for cmd in "$@"; do
     if ! command -v -- "${cmd}" 1>/dev/null; then
-      PrintStderr "ERROR: \"${cmd}\" not found in \$PATH"
+      PrintStderr "[ERROR] \"${cmd}\" not found in \$PATH"
       code=$((code+1))
     fi
   done
