@@ -15,7 +15,7 @@ if ! { echo "$-" | grep -q i; }; then
 set -e
 
 # Global variables
-LAWS_VERSION='0.3.1'
+LAWS_VERSION='0.3.2'
 LAWS_PROGRAM_NAME="$(basename -- "$0")"
 
 # When EXIT, clean up temporary files.
@@ -940,7 +940,7 @@ CallAPIS3GET() { (
   curl -ksS -X "${HTTPMethod}" \
     -H "$(PrintCanonicalHeader)" \
     -H "Authorization: $(PrintAuthorization)" \
-    "https://${AWSAPIEndpoint}${RequestPath}${CanonicalQueryString+"?${CanonicalQueryString}"}"
+    "https://${AWSAPIEndpoint}${RequestPath}${CanonicalQueryString:+"?${CanonicalQueryString}"}"
 )}
 
 ##
@@ -971,7 +971,7 @@ CallAPIS3PUT() { (
     -H "$(PrintHTTPHeader)" \
     -H "Authorization: $(PrintAuthorization)" \
     -T "${SourcePath}" \
-    "https://${AWSAPIEndpoint}${RequestPath}${CanonicalQueryString+"?${CanonicalQueryString}"}" | tee /dev/stderr
+    "https://${AWSAPIEndpoint}${RequestPath}${CanonicalQueryString:+"?${CanonicalQueryString}"}" | tee /dev/stderr
 )}
 
 ##
@@ -1042,10 +1042,10 @@ PrintS3ListObjects() { (
   { [ -z "${MaxKeys}" ] || ContainRegex '[^0-9]' "${MaxKeys}"; } && MaxKeys=1000
 
   # CanonicalQueryString
-  CanonicalQueryString="${ContinuationToken+"continuation-token=${ContinuationToken}&"}"
+  CanonicalQueryString="${ContinuationToken:+"continuation-token=${ContinuationToken}&"}"
   CanonicalQueryString="${CanonicalQueryString}$([ "${Recursive}" = true ] || printf '%s' "delimiter=%2F&")"
   CanonicalQueryString="${CanonicalQueryString}list-type=2&max-keys=${MaxKeys}"
-  CanonicalQueryString="${CanonicalQueryString}${Prefix+"&prefix=${Prefix}"}"
+  CanonicalQueryString="${CanonicalQueryString}${Prefix:+"&prefix=${Prefix}"}"
 
   # run
   response=$(CallAPIS3GET)
