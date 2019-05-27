@@ -38,15 +38,6 @@ test-ec2:
 ##
 # release
 ##
-.PHONY: release
-release: test ## laws --version で出力されるバージョンでタグを打ちます。
-	@./.tools/release.sh
-
-.PHONY: release-force
-release-force: test ## laws --version で出力されるバージョンでタグを打ちます（既に存在する場合は上書きます）。
-	@git tag -d `laws version | sed s/^[^[:blank:]]*[[:blank:]]//` && git push origin :`laws version | sed s/^[^[:blank:]]*[[:blank:]]//`
-	@./.tools/release.sh
-
 .PHONY: merge
 merge:  ## いい感じに merge します。
 	CurrentBrunch=`git branch | grep ^* | sed s/^[^[:blank:]][[:blank:]]//` && \
@@ -58,3 +49,13 @@ merge:  ## いい感じに merge します。
 		git merge develop && \
 		git push && \
 		git checkout $${CurrentBrunch}
+
+.PHONY: release
+release: test ## laws --version で出力されるバージョンでタグを打ちます。
+	@./.tools/release.sh
+
+.PHONY: release-force
+release-force: test ## laws --version で出力されるバージョンでタグを打ちます（既に存在する場合は上書きます）。
+	@git tag -d `laws version | sed s/^[^[:blank:]]*[[:blank:]]//` && git push origin :`laws version | sed s/^[^[:blank:]]*[[:blank:]]//`
+	@./.tools/release.sh
+
