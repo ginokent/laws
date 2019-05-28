@@ -1234,26 +1234,31 @@ LawsS3Cp() {
   fi
 
   ##
-  # vars common
+  # args
   ##
   sourcePath="${1:?"$(PrintStderrLog F "LawsS3Cp(): requires \"sourcePath\" as \$1")"}"
   destinationPath="${2:?"$(PrintStderrLog F "LawsS3Cp(): requires \"destinationPath\" as \$2")"}"
 
+  ##
   # stdin
+  ##
   if [ "${sourcePath}" = - ]; then
     tmpFileForStdinToS3=$(mktemp)
-    cat /dev/stdin > "${tmpFileForStdinToS3}"
+    cat - > "${tmpFileForStdinToS3}"
     sourcePath="${tmpFileForStdinToS3}"
   fi
 
+  ##
   # stdout
+  ##
   if [ "${destinationPath}" = - ]; then
-    destinationPath='/dev/stdout'
+    destinationPath=/dev/stdout
   fi
 
+  ##
   # copy local to s3 (PUT)
-  if [ -e "${sourcePath}" ] && { echo "${destinationPath}" | grep -q '^s3://'; }; then
-
+  ##
+  if [ -e "${sourcePath}" ] && ContainRegex '^s3://' "${destinationPath}"; then
     # vars for cURL
     HTTPMethod='PUT'
     HashedPayload="$(openssl dgst -sha256 "${sourcePath}" | sed 's/^.*[[:blank:]]//')"
@@ -1273,8 +1278,10 @@ LawsS3Cp() {
 
     return 0
 
+  ##
   # copy s3 to s3 (GET and PUT)
-  elif { echo "${sourcePath} ${destinationPath}" | grep -q '^s3://.* s3://'; }; then
+  ##
+  elif ContainRegex '^s3://.* s3://' "${sourcePath} ${destinationPath}"; then
     # GET
     tmpFileForS3ToS3=$(mktemp)
     LawsS3Cat "${sourcePath}" > "${tmpFileForS3ToS3}"
@@ -1291,9 +1298,10 @@ LawsS3Cp() {
 
     return 0
 
+  ##
   # copy s3 to local (GET)
-  elif { echo "${sourcePath}" | grep -q '^s3://'; }; then
-
+  ##
+  elif ContainRegex '^s3://' "${sourcePath}"; then
     if [ -d "${destinationPath}" ]; then
       #PrintStderrLog D "download ${sourcePath} to ${destinationPath}/$(basename -- "${sourcePath}")"
       LawsS3Cat "${sourcePath}" > "${destinationPath}/$(basename -- "${sourcePath}")"
