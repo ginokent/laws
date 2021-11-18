@@ -77,12 +77,12 @@ Currently `laws` only supports **Amazon S3**.
 
 ## TL;DR
 
-    $ curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws | sh /dev/stdin s3 ls
+    $ curl -sS https://raw.githubusercontent.com/newtstat/laws/main/laws | sh /dev/stdin s3 ls
 
 
 ## Install:
 
-    $ sudo curl -sS https://raw.githubusercontent.com/djeeno/laws/master/laws -o /usr/local/bin/laws && sudo chmod +x $_
+    $ sudo curl -sS https://raw.githubusercontent.com/newtstat/laws/main/laws -o /usr/local/bin/laws && sudo chmod +x $_
 
 
 ## Usage:

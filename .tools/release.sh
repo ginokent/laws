@@ -3,7 +3,7 @@
 echo git pull ...
 git pull
 
-RELEASE_BRANCH_NAME=master
+RELEASE_BRANCH_NAME=main
 CURRENT_BRANCH_NAME=$(git branch | grep "^\*" | sed s/^[^[:blank:]][[:blank:]]//)
 TAG_LATEST_VERSION=$(git tag | grep -E "[0-9]+\.[0-9]+\.[0-9]+" | sort -V | tail -1)
 BIN_NAME=laws

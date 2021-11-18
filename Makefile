@@ -45,7 +45,7 @@ merge:  ## いい感じに merge します。
 		git checkout develop && \
 		git merge $${CurrentBrunch} && \
 		git push && \
-		git checkout master && \
+		git checkout main && \
 		git merge develop && \
 		git push && \
 		git checkout $${CurrentBrunch}

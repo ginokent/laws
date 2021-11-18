@@ -2,7 +2,7 @@
 
 set -e
 
-PROTECTED_BRANCH="master|develop"
+PROTECTED_BRANCH="main|develop"
 
 # If on the branch:
 if { git branch -a | tee /dev/stderr | grep -Eq '^\*[[:blank:]]('"${PROTECTED_BRANCH}"')'; }; then
