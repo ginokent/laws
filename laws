@@ -97,22 +97,26 @@ When executing this script,
     $ export AWS_SECRET_ACCESS_KEY=****************************************
 
 #### `help`
-Display help.  
+
+Display help.
 
     $ laws help
 
 #### `s3 ls`
-List the contents on Amazon S3.  
+
+List the contents on Amazon S3.
 
     $ laws s3 ls [<your-bucket>[<prefix>]]
 
 #### `s3 cat`
-Get the contents of the file on Amazon S3.  
+
+Get the contents of the file on Amazon S3.
 
     $ laws s3 cat s3://your-bucket/path/to/file ...
 
 #### `s3 cp`
-Copy a file.  
+
+Copy a file.
 
     $ laws s3 cp s3://your-bucket/path/to/file /path/to/file
     $ laws s3 cp /path/to/file s3://your-bucket/path/to/file
@@ -126,18 +130,20 @@ Copy a file.
 
 
 ## Note:
-This program relies heavily on "AWS Signature Version 4".  
+
+This program relies heavily on "AWS Signature Version 4".
 
 #### References:
-- Signing AWS Requests with Signature Version 4 - Amazon Web Services  
-  https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html  
+
+- Signing AWS Requests with Signature Version 4 - Amazon Web Services
+  - https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
 - Authenticating Requests: Using Query Parameters (AWS Signature Version 4)
-  https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
-- Signature Calculations for the Authorization Header:  
-  Transferring Payload in a Single Chunk (AWS Signature Version 4) - Amazon Simple Storage Service  
-  https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html  
-- GET Bucket (List Objects) Version 2  
-  https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html  
+  - https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/sigv4-query-string-auth.html
+- Signature Calculations for the Authorization Header:
+  - Transferring Payload in a Single Chunk (AWS Signature Version 4) - Amazon Simple Storage Service
+  - https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html
+- GET Bucket (List Objects) Version 2
+  - https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/API/v2-RESTBucketGET.html
 
 
 ## TODO
@@ -188,7 +194,7 @@ PrintStderrLog() { (
   # vars
   logLevel="${1:?"$(PrintDateUTC) [FATAL] PrintStderrLog(): requires \"logLevel\" as \$1"}"
   logMessages="${2:?"$(PrintDateUTC) [FATAL] PrintStderrLog(): requires \"logMessages\" as \$2"}"
-  
+
   # check logLevel
   case "${logLevel}" in
     f|F) tag='[FATAL]' ;;
@@ -362,7 +368,7 @@ ConvertHMAC() { (
 # Stdin:
 #   no
 # Stdout:
-#   string that being SHA256 hashed 
+#   string that being SHA256 hashed
 # Stderr:
 #   no
 # Return:
@@ -688,7 +694,16 @@ SetAWSAccessKey() {
     return 0
   fi
 
-  # 1. try to get credentials from environment variables: AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+  # 1. try to get credentials from environment variables: AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+  if [ "${AWS_ACCESS_KEY_ID:-}" ] && [ "${AWS_SECRET_ACCESS_KEY:-}" ] && [ "${AWS_SESSION_TOKEN:-}" ]; then
+    AWSAccessKeyId="${AWS_ACCESS_KEY_ID}" AWSSecretAccessKey="${AWS_SECRET_ACCESS_KEY}" STSToken="${AWS_SESSION_TOKEN:-}"
+    # If "AWSAccessKeyId" AND "AWSSecretAccessKey" AND "STSToken" defined, return normally
+    if [ "${AWSAccessKeyId}" ] && [ "${AWSSecretAccessKey}" ] && [ "${STSToken}" ]; then
+      return 0
+    fi
+  fi
+
+  # 2. try to get credentials from environment variables: AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
   if [ "${AWS_ACCESS_KEY_ID}" ] && [ "${AWS_SECRET_ACCESS_KEY}" ]; then
     AWSAccessKeyId="${AWS_ACCESS_KEY_ID}" AWSSecretAccessKey="${AWS_SECRET_ACCESS_KEY}"
     # If "AWSAccessKeyId" AND "AWSSecretAccessKey" defined, return normally
@@ -697,7 +712,7 @@ SetAWSAccessKey() {
     fi
   fi
 
-  # 2. try to get credentials from `~/.aws/config` and `~/.aws/credentials`
+  # 3. try to get credentials from `~/.aws/config` and `~/.aws/credentials`
   if [ -r ~/.aws/credentials ] && { grep -q "[^#]*${AWS_PROFILE:-default}" ~/.aws/credentials; }; then
     INI_aws_access_key_id='' INI_aws_secret_access_key=''
     #                       "\(profile \)*default" ... "profile defalut" or "default"
@@ -709,7 +724,7 @@ SetAWSAccessKey() {
     fi
   fi
 
-  # 3. try to get credentials from AWS meta-data Instance Profile
+  # 4. try to get credentials from AWS meta-data Instance Profile
   instanceProfileName=$(curl -sS --max-time 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null || true)
   secCredJSON=$(curl -sS --max-time 1 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${instanceProfileName}" 2>/dev/null || true)
   AWSAccessKeyId=$(echo "${secCredJSON}" | grep 'AccessKeyId' | sed 's/.*"[^"]*" : "\([^"]*\)".*/\1/g')
@@ -1172,7 +1187,7 @@ LawsS3Ls() { (
   # if no args, list buckets, else list objects by passed bucket
   if [ "$#" = 0 ] || [ "$1" = / ] || [ "$1" = s3:// ]; then
     PrintS3ListBuckets
-  else 
+  else
     for arg in "$@"; do
       PrintS3ListObjects "$(PrintSchemeSlashSlashRemoved "${arg}")"
     done
